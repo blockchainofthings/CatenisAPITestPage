@@ -8,7 +8,7 @@
         <script language="JavaScript">
             var ctnApiClient;
             var device = {};
-            var lastTxid;
+            var lastMsgId;
 
             function resetDevice() {
                 device = {};
@@ -61,13 +61,17 @@
                 }, processMessageResult);
             }
 
-            function readMessage(txid, encoding) {
-                ctnApiClient.readMessage(txid, encoding, processResult);
+            function readMessage(messageId, encoding) {
+                ctnApiClient.readMessage(messageId, encoding, processResult);
+            }
+
+            function retrieveMessageContainer(messageId) {
+                ctnApiClient.retrieveMessageContainer(messageId, processResult);
             }
 
             function processMessageResult(err, data) {
-                if (!err && typeof data.data === 'object' && data.data !== null && typeof data.data.txid === 'string') {
-                    lastTxid = data.data.txid;
+                if (!err && typeof data.data === 'object' && data.data !== null && typeof data.data.messageId === 'string') {
+                    lastMsgId = data.data.messageId;
                 }
 
                 processResult(err, data);
@@ -116,14 +120,14 @@
                 }
             }
 
-            function requireTxid() {
-                var txid = document.getElementById('itxTxid').value;
+            function requireMsgId() {
+                var messageId = document.getElementById('itxMsgId').value;
 
-                if (txid && txid.length > 0) {
+                if (messageId && messageId.length > 0) {
                     return true;
                 }
                 else {
-                    alert('Please enter a transaction ID');
+                    alert('Please enter a message ID');
                     return false;
                 }
             }
@@ -161,9 +165,9 @@
                 document.getElementById('itxDeviceId').value = device.deviceId;
             }
 
-            function fillWithLastTxid() {
-                if (lastTxid) {
-                    document.getElementById('itxTxid').value = lastTxid;
+            function fillWithLastMsgId() {
+                if (lastMsgId) {
+                    document.getElementById('itxMsgId').value = lastMsgId;
                 }
             }
 
@@ -229,17 +233,18 @@
                 </tr>
                 <tr>
                     <td valign="top" align="right" style="padding-top:1.25em">
-                        <label for="itxTxid">Transaction ID: </label>
+                        <label for="itxMsgId">Message ID: </label>
                     </td>
                     <td style="padding-top:1em">
-                        <input id="itxTxid" style="margin-bottom:0.5em" type="text" maxlength="64" size="80"/>
-                        <div width="100%" align="right" style="margin-right:30px;margin-bottom:-1em"><a href="javascript:fillWithLastTxid()">Fill with last txid</a></div>
-                        <label for="selRdMsgEncoding">encoding: </label><select id="selRdMsgEncoding">
+                        <input id="itxMsgId" style="margin-bottom:0.5em" type="text" maxlength="64" size="80"/>
+                        <div width="100%" align="right" style="margin-right:30px;margin-bottom:-1em"><a href="javascript:fillWithLastMsgId()">Fill with last message ID</a></div>
+                        <button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearResult(); if(requireMsgId()){retrieveMessageContainer(document.getElementById('itxMsgId').value)}else{return false}">Retrieve Message Container</button>
+                        <br/><label for="selRdMsgEncoding">encoding: </label><select id="selRdMsgEncoding">
                             <option value="utf8" selected>UTF-8</option>
                             <option value="base64">Base-64</option>
                             <option value="hex">Hex</option>
                         </select>
-                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearResult(); if(requireTxid()){readMessage(document.getElementById('itxTxid').value, document.getElementById('selRdMsgEncoding').value)}else{return false}">Read Message</button>
+                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearResult(); if(requireMsgId()){readMessage(document.getElementById('itxMsgId').value, document.getElementById('selRdMsgEncoding').value)}else{return false}">Read Message</button>
                     </td>
                 </tr>
             </table>
