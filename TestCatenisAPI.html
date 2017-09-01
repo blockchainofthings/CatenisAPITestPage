@@ -84,6 +84,22 @@
                 }, processResult);
             }
 
+            function listPermissionEvents(cb) {
+                ctnApiClient.listPermissionEvents(typeof cb === 'function' ? cb : processResult);
+            }
+
+            function retrievePermissionRights(eventName) {
+                ctnApiClient.retrievePermissionRights(eventName, processResult);
+            }
+
+            function setPermissionRights(eventName, rights) {
+                ctnApiClient.setPermissionRights(eventName, rights, processResult);
+            }
+
+            function listNotificationEvents(cb) {
+                ctnApiClient.listNotificationEvents(typeof cb === 'function' ? cb : processResult);
+            }
+
             function processMessageResult(err, data) {
                 if (!err && typeof data.data === 'object' && data.data !== null && typeof data.data.messageId === 'string') {
                     lastMsgId = data.data.messageId;
@@ -95,20 +111,19 @@
             function processResult(err, data) {
                 //showArgs.bind(undefined, 'processResult')(arguments);
                 if (err) {
-                    showResult(err, true);
+                    showApiResult(err, true);
                 }
                 else {
-                    showResult(data);
+                    showApiResult(data);
                 }
             }
 
-            function showResult(data, isError) {
-                //document.getElementById('pReqResult').innerHTML = (isError ? '<span style="color: red;">ERROR:</span>' : '') + '<pre>' + JSON.stringify(data, null, '  ') + '</pre>';
-                document.getElementById('pReqResult').innerHTML = (isError ? '<span style="color: red;">ERROR:</span>' : '') + '<pre>' + JSON.stringify(data, null, '  ') + '</pre>';
+            function showApiResult(data, isError) {
+                document.getElementById('pApiResult').innerHTML = (isError ? '<span style="color: red;">ERROR:</span>' : '') + '<pre>' + JSON.stringify(data, null, '  ') + '</pre>';
             }
 
-            function clearResult() {
-                document.getElementById('pReqResult').innerHTML = '';
+            function clearApiResult() {
+                document.getElementById('pApiResult').innerHTML = '';
             }
 
             function requireMessage() {
@@ -183,19 +198,19 @@
                 if (ctrl.value && ctrl.value.length > 0) {
                     var oldDeviceId = device.deviceId;
 
-                    if (oldDeviceId != ctrl.value) {
+                    if (oldDeviceId !== ctrl.value) {
                         var newApiAccessSecret;
 
                         do {
                             newApiAccessSecret = prompt('Please enter API access secret for device');
                         }
-                        while (newApiAccessSecret !== null && newApiAccessSecret.length == 0);
+                        while (newApiAccessSecret !== null && newApiAccessSecret.length === 0);
 
                         if (newApiAccessSecret !== null) {
                             device.deviceId = ctrl.value;
                             device.apiAccessSecret = newApiAccessSecret;
 
-                            clearResult();
+                            clearApiResult();
                             initApiClient();
                         }
                         else {
@@ -235,11 +250,372 @@
                 });
                 alert(argList);
             }
+
+            function appendInputText(parentId, maxLength, size, placeholder) {
+                var parentElem = document.getElementById(parentId);
+                parentElem.appendChild(document.createElement('br'));
+
+                var inputElem = document.createElement('input');
+                inputElem.setAttribute('type', 'text');
+                inputElem.setAttribute('maxlength', maxLength);
+                inputElem.setAttribute('size', size);
+                if (placeholder)
+                    inputElem.setAttribute('placeholder', placeholder);
+                parentElem.appendChild(inputElem);
+            }
+
+            function removeLastInputText(parentId) {
+                var parentElem = document.getElementById(parentId);
+                var inputList = parentElem.getElementsByTagName('input');
+
+                if (inputList.length > 1) {
+                    var inputElem = inputList.item(inputList.length - 1);
+                    parentElem.removeChild(inputElem.previousSibling);
+                    parentElem.removeChild(inputElem);
+                }
+            }
+
+            function appendDeviceIdInput(parentId, maxLength, size, placeholder) {
+                var parentElem = document.getElementById(parentId);
+                var divElem = document.createElement('div');
+                divElem.setAttribute('style', 'margin-bottom:0.3em')
+
+                var inputElem = document.createElement('input');
+                inputElem.setAttribute('type', 'text');
+                inputElem.setAttribute('maxlength', maxLength);
+                inputElem.setAttribute('size', size);
+                if (placeholder)
+                    inputElem.setAttribute('placeholder', placeholder);
+                divElem.appendChild(inputElem);
+
+                divElem.appendChild(document.createElement('br'));
+
+                var labelElem = document.createElement('label');
+                labelElem.innerText = 'product unique ID: ';
+                divElem.appendChild(labelElem);
+
+                inputElem = document.createElement('input');
+                inputElem.setAttribute('type', 'checkbox');
+                divElem.appendChild(inputElem);
+
+                parentElem.appendChild(divElem);
+            }
+
+            function removeDeviceIdInput(parentId) {
+                var parentElem = document.getElementById(parentId);
+                var divList = parentElem.getElementsByTagName('div');
+
+                if (divList.length > 1) {
+                    var divElem = divList.item(divList.length - 1);
+                    parentElem.removeChild(divElem);
+                }
+            }
+
+            function checkPermEventNameField(ctrlId) {
+                var permEventName = document.getElementById(ctrlId);
+
+                if (permEventName && checkUndefined(permEventName.value) === undefined) {
+                    alert('Please select a permission event');
+                    permEventName.focus();
+                    return false;
+                }
+
+                return true;
+            }
+
+            function fillPermEventNames(selCtrlIds) {
+                listPermissionEvents(function (err, result) {
+                    if (err) {
+                        console.debug('Error calling List Permission Events Catenis API method', err);
+                    }
+                    else {
+                        if (result.status === 'success') {
+                            selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
+
+                            selCtrlIds.forEach(function (selCtrlId) {
+                                var selCtrl = document.getElementById(selCtrlId);
+
+                                if (selCtrl) {
+                                    Object.keys(result.data).forEach(function (eventName) {
+                                        var optElem = document.createElement('option');
+                                        optElem.setAttribute('value', eventName);
+                                        optElem.innerText = eventName + ' - ' + result.data[eventName];
+                                        selCtrl.appendChild(optElem);
+                                    });
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            function getPermRightsToSet() {
+                var rights = {};
+
+                var sysRight = checkUndefined(document.getElementById('selSysRight').value);
+                if (sysRight)
+                    rights.system = sysRight;
+
+                var allowCtnNodeIndices = [];
+                (function (inputElems) {
+                    for (var idx = 0; idx < inputElems.length; idx++) {
+                        var value = checkUndefined(inputElems[idx].value.trim());
+                        if (value)
+                            allowCtnNodeIndices.push(value);
+                    }
+                })(document.getElementById('divCtnNodeAllow').getElementsByTagName('input'));
+
+                var denyCtnNodeIndices = [];
+                (function (inputElems) {
+                    for (var idx = 0; idx < inputElems.length; idx++) {
+                        var value = checkUndefined(inputElems[idx].value.trim());
+                        if (value)
+                            denyCtnNodeIndices.push(value);
+                    }
+                })(document.getElementById('divCtnNodeDeny').getElementsByTagName('input'));
+
+                var noneCtnNodeIndices = [];
+                (function (inputElems) {
+                    for (var idx = 0; idx < inputElems.length; idx++) {
+                        var value = checkUndefined(inputElems[idx].value.trim());
+                        if (value)
+                            noneCtnNodeIndices.push(value);
+                    }
+                })(document.getElementById('divCtnNodeNone').getElementsByTagName('input'));
+
+                if (allowCtnNodeIndices.length > 0 || denyCtnNodeIndices.length > 0 || noneCtnNodeIndices.length > 0) {
+                    rights.catenisNode = {};
+
+                    if (allowCtnNodeIndices.length > 0)
+                        rights.catenisNode.allow = allowCtnNodeIndices.length > 1 ? allowCtnNodeIndices : allowCtnNodeIndices[0];
+
+                    if (denyCtnNodeIndices.length > 0)
+                        rights.catenisNode.deny = denyCtnNodeIndices.length > 1 ? denyCtnNodeIndices : denyCtnNodeIndices[0];
+
+                    if (noneCtnNodeIndices.length > 0)
+                        rights.catenisNode.none = noneCtnNodeIndices.length > 1 ? noneCtnNodeIndices : noneCtnNodeIndices[0];
+                }
+
+                var allowClientIds = [];
+                (function (inputElems) {
+                    for (var idx = 0; idx < inputElems.length; idx++) {
+                        var value = checkUndefined(inputElems[idx].value.trim());
+                        if (value)
+                            allowClientIds.push(value);
+                    }
+                })(document.getElementById('divClientAllow').getElementsByTagName('input'));
+
+                var denyClientIds = [];
+                (function (inputElems) {
+                    for (var idx = 0; idx < inputElems.length; idx++) {
+                        var value = checkUndefined(inputElems[idx].value.trim());
+                        if (value)
+                            denyClientIds.push(value);
+                    }
+                })(document.getElementById('divClientDeny').getElementsByTagName('input'));
+
+                var noneClientIds = [];
+                (function (inputElems) {
+                    for (var idx = 0; idx < inputElems.length; idx++) {
+                        var value = checkUndefined(inputElems[idx].value.trim());
+                        if (value)
+                            noneClientIds.push(value);
+                    }
+                })(document.getElementById('divClientNone').getElementsByTagName('input'));
+
+                if (allowClientIds.length > 0 || denyClientIds.length > 0 || noneClientIds.length > 0) {
+                    rights.client = {};
+
+                    if (allowClientIds.length > 0)
+                        rights.client.allow = allowClientIds.length > 1 ? allowClientIds : allowClientIds[0];
+
+                    if (denyClientIds.length > 0)
+                        rights.client.deny = denyClientIds.length > 1 ? denyClientIds : denyClientIds[0];
+
+                    if (noneClientIds.length > 0)
+                        rights.client.none = noneClientIds.length > 1 ? noneClientIds : noneClientIds[0];
+                }
+
+                var allowDeviceIds = [];
+                (function (divElems) {
+                    for (var idx = 0; idx < divElems.length; idx++) {
+                        var deviceId = {};
+
+                        (function (inputElems) {
+                            for (var idx = 0; idx < inputElems.length; idx++) {
+                                if (idx === 0) {
+                                    var value = checkUndefined(inputElems[idx].value.trim());
+                                    if (value)
+                                        deviceId.id = value;
+                                }
+                                else {
+                                    if (inputElems[idx].checked)
+                                        deviceId.prodUniqueId = true;
+                                }
+                            }
+                        })(divElems[idx].getElementsByTagName('input'));
+
+                        if (deviceId.id)
+                            allowDeviceIds.push(deviceId);
+                    }
+                })(document.getElementById('divDeviceAllow').getElementsByTagName('div'));
+
+                var denyDeviceIds = [];
+                (function (divElems) {
+                    for (var idx = 0; idx < divElems.length; idx++) {
+                        var deviceId = {};
+
+                        (function (inputElems) {
+                            for (var idx = 0; idx < inputElems.length; idx++) {
+                                if (idx === 0) {
+                                    var value = checkUndefined(inputElems[idx].value.trim());
+                                    if (value)
+                                        deviceId.id = value;
+                                }
+                                else {
+                                    if (inputElems[idx].checked)
+                                        deviceId.prodUniqueId = true;
+                                }
+                            }
+                        })(divElems[idx].getElementsByTagName('input'));
+
+                        if (deviceId.id)
+                            denyDeviceIds.push(deviceId);
+                    }
+                })(document.getElementById('divDeviceDeny').getElementsByTagName('div'));
+
+                var noneDeviceIds = [];
+                (function (divElems) {
+                    for (var idx = 0; idx < divElems.length; idx++) {
+                        var deviceId = {};
+
+                        (function (inputElems) {
+                            for (var idx = 0; idx < inputElems.length; idx++) {
+                                if (idx === 0) {
+                                    var value = checkUndefined(inputElems[idx].value.trim());
+                                    if (value)
+                                        deviceId.id = value;
+                                }
+                                else {
+                                    if (inputElems[idx].checked)
+                                        deviceId.prodUniqueId = true;
+                                }
+                            }
+                        })(divElems[idx].getElementsByTagName('input'));
+
+                        if (deviceId.id)
+                            noneDeviceIds.push(deviceId);
+                    }
+                })(document.getElementById('divDeviceNone').getElementsByTagName('div'));
+
+                if (allowDeviceIds.length > 0 || denyDeviceIds.length > 0 || noneDeviceIds.length > 0) {
+                    rights.device = {};
+
+                    if (allowDeviceIds.length > 0)
+                        rights.device.allow = allowDeviceIds.length > 1 ? allowDeviceIds : allowDeviceIds[0];
+
+                    if (denyDeviceIds.length > 0)
+                        rights.device.deny = denyDeviceIds.length > 1 ? denyDeviceIds : denyDeviceIds[0];
+
+                    if (noneDeviceIds.length > 0)
+                        rights.device.none = noneDeviceIds.length > 1 ? noneDeviceIds : noneDeviceIds[0];
+                }
+
+                return rights;
+            }
+
+            function checkNotifyEventNameField(ctrlId) {
+                var ntfyEventName = document.getElementById(ctrlId);
+
+                if (ntfyEventName && checkUndefined(ntfyEventName.value) === undefined) {
+                    alert('Please select a notification event');
+                    ntfyEventName.focus();
+                    return false;
+                }
+
+                return true;
+            }
+
+            function fillNotifyEventNames(selCtrlIds) {
+                listNotificationEvents(function (err, result) {
+                    if (err) {
+                        console.debug('Error calling List Notification Events Catenis API method', err);
+                    }
+                    else {
+                        if (result.status === 'success') {
+                            selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
+
+                            selCtrlIds.forEach(function (selCtrlId) {
+                                var selCtrl = document.getElementById(selCtrlId);
+
+                                if (selCtrl) {
+                                    Object.keys(result.data).forEach(function (eventName) {
+                                        var optElem = document.createElement('option');
+                                        optElem.setAttribute('value', eventName);
+                                        optElem.innerText = eventName + ' - ' + result.data[eventName];
+                                        selCtrl.appendChild(optElem);
+                                    });
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            var wsNtfyChannels = {};
+
+            function showWSActiviy(eventName, data) {
+                var pElem = document.createElement('p');
+                pElem.style.wordWrap = "break-word";
+                pElem.innerHTML = '[' + eventName + '] - ' + data;
+                document.getElementById('pNtfyChannelActivity').appendChild(pElem);
+            }
+
+            function clearWSActiviy() {
+                document.getElementById('pNtfyChannelActivity').innerHTML = '';
+            }
+
+            function openWsNtfyChannel(eventName) {
+                if (!(eventName in wsNtfyChannels)) {
+                    var wsNtfyChannel = ctnApiClient.createWsNotifyChannel(eventName);
+
+                    wsNtfyChannel.addListener('error', function (error) {
+                        showWSActiviy(this.eventName, '<span style="color: red;">ERROR:</span><pre>' + JSON.stringify(error) + '</pre>');
+                    });
+
+                    wsNtfyChannel.addListener('close', function (code, reason) {
+                        showWSActiviy(this.eventName, 'DISCONNECTED - [' + code + ']' + (reason ? ' - ' + reason : ''));
+                        delete wsNtfyChannels[eventName];
+                    });
+
+                    wsNtfyChannel.addListener('message', function (data) {
+                        showWSActiviy(this.eventName, '<span style="color: blue;">RECEIVED DATA:</span><pre>' + JSON.stringify(JSON.parse(data), null, '  ') + '</pre>');
+                    });
+
+                    wsNtfyChannel.open(function (err) {
+                        if (err) {
+                            showWSActiviy(this.eventName, '<span style="color: red;">ERROR:</span><pre>' + error + '</pre>');
+                        }
+                        else {
+                            // WebSocket connected
+                            showWSActiviy(this.eventName, 'CONNECTED');
+                        }
+                    });
+
+                    wsNtfyChannels[eventName] = wsNtfyChannel;
+                }
+            }
+
+            function closeWsNtfyChannel(eventName) {
+                if (eventName in wsNtfyChannels) {
+                    wsNtfyChannels[eventName].close();
+                }
+            }
         </script>
     </head>
     <body>
         <div id="divEnvironment">
-            <label for="selEnvironment">Environment: </label><select id="selEnvironment" onchange="clearResult(); resetDevice(); initApiClient()">
+            <label for="selEnvironment">Environment: </label><select id="selEnvironment" onchange="clearApiResult(); resetDevice(); initApiClient()">
                 <option value="localhost" selected>localhost</option>
                 <option value="Catenis-API">Catenis API server</option>
             </select>
@@ -265,7 +641,7 @@
                             <option value="embedded">Embedded</option>
                             <option value="external">External</option>
                         </select>
-                        <br/><button id="btnLogMessage" style="margin-top:10px" onclick="clearResult(); if(requireMessage()){logMessage(document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Log Message</button>
+                        <br/><button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMessage()){logMessage(document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Log Message</button>
                         <div style="margin-top:1em">
                             <table>
                                 <tr>
@@ -275,7 +651,7 @@
                                     <td>
                                         <input id="itxTrgtDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
                                         <br/><label for="cbxProdUniqId">product unique ID: </label><input id="cbxProdUniqId" type="checkbox"/>
-                                        <br/><button id="btnSendMessage" style="margin-top:10px" onclick="clearResult(); if(requireMessage() && requireTargetDevice()){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
+                                        <br/><button id="btnSendMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMessage() && requireTargetDevice()){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
                                     </td>
                                 </tr>
                             </table>
@@ -289,13 +665,13 @@
                     <td style="padding-top:1em">
                         <input id="itxMsgId" style="margin-bottom:0.5em" type="text" maxlength="64" size="80"/>
                         <div width="100%" align="right" style="margin-right:30px;margin-bottom:-1em"><a href="javascript:fillWithLastMsgId()">Fill with last message ID</a></div>
-                        <button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearResult(); if(requireMsgId()){retrieveMessageContainer(document.getElementById('itxMsgId').value)}else{return false}">Retrieve Message Container</button>
+                        <button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireMsgId()){retrieveMessageContainer(document.getElementById('itxMsgId').value)}else{return false}">Retrieve Message Container</button>
                         <br/><label for="selRdMsgEncoding">encoding: </label><select id="selRdMsgEncoding">
                             <option value="utf8" selected>UTF-8</option>
                             <option value="base64">Base-64</option>
                             <option value="hex">Hex</option>
                         </select>
-                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearResult(); if(requireMsgId()){readMessage(document.getElementById('itxMsgId').value, document.getElementById('selRdMsgEncoding').value)}else{return false}">Read Message</button>
+                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMsgId()){readMessage(document.getElementById('itxMsgId').value, document.getElementById('selRdMsgEncoding').value)}else{return false}">Read Message</button>
                     </td>
                 </tr>
 
@@ -392,20 +768,277 @@
                         <input id="idtEndDate" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
                     </td>
                 </tr>
-
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnListMessages" style="margin-top:10px" onclick="clearResult(); if(checkListMessagesDateFields()){listMessages(checkUndefined(document.getElementById('selMsgAction').value),checkUndefined(document.getElementById('selMsgDirection').value),checkUndefined(document.getElementById('itxFromDeviceIds').value.trim()),checkUndefined(document.getElementById('itxToDeviceIds').value.trim()),checkUndefined(document.getElementById('itxFromDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('itxToDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('selReadState').value),formatDate(document.getElementById('idtStartDate').value),formatDate(document.getElementById('idtEndDate').value))}else{return false}">List Messages</button>
+                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkListMessagesDateFields()){listMessages(checkUndefined(document.getElementById('selMsgAction').value),checkUndefined(document.getElementById('selMsgDirection').value),checkUndefined(document.getElementById('itxFromDeviceIds').value.trim()),checkUndefined(document.getElementById('itxToDeviceIds').value.trim()),checkUndefined(document.getElementById('itxFromDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('itxToDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('selReadState').value),formatDate(document.getElementById('idtStartDate').value),formatDate(document.getElementById('idtEndDate').value))}else{return false}">List Messages</button>
                     </td>
                 </tr>
 
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Retrieve permission rights:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="selRetrvPermRightsEventName">Permission event: </label>
+                    </td>
+                    <td>
+                        <select id="selRetrvPermRightsEventName">
+                            <option ></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnRetrvPermissionRights" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selRetrvPermRightsEventName')){retrievePermissionRights(document.getElementById('selRetrvPermRightsEventName').value)}else{return false}">Retrieve Rights</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Set permission rights:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-right:1em">
+                        <label for="selSetPermRightsEventName">Permission event: </label>
+                    </td>
+                    <td>
+                        <select id="selSetPermRightsEventName">
+                            <option ></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-right:1em">
+                        <label>Rights: </label>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-right:0.5em">
+                        <label for="selSysRight">System: </label>
+                    </td>
+                    <td>
+                        <select id="selSysRight">
+                            <option ></option>
+                            <option value="allow">Allow</option>
+                            <option value="deny">Deny</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-right:0.5em">
+                        <label>Catenis node: </label>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="divCtnNodeAllow">allow: </label>
+                    </td>
+                    <td>
+                        <div id="divCtnNodeAllow">
+                            <input type="text" maxlength="4" size="10" placeholder="None index" />
+                        </div>
+                        <a href="javascript:appendInputText('divCtnNodeAllow', '4', '10', 'None index')">Add</a>&nbsp;
+                        <a href="javascript:removeLastInputText('divCtnNodeAllow')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:0.5em">
+                        <label for="divCtnNodeDeny">deny: </label>
+                    </td>
+                    <td style="padding-top:0.5em">
+                        <div id="divCtnNodeDeny">
+                            <input type="text" maxlength="4" size="10" placeholder="None index" />
+                        </div>
+                        <a href="javascript:appendInputText('divCtnNodeDeny', '4', '10', 'None index')">Add</a>&nbsp;
+                        <a href="javascript:removeLastInputText('divCtnNodeDeny')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:0.5em">
+                        <label for="divCtnNodeNone">none: </label>
+                    </td>
+                    <td style="padding-top:0.5em">
+                        <div id="divCtnNodeNone">
+                            <input type="text" maxlength="4" size="10" placeholder="None index" />
+                        </div>
+                        <a href="javascript:appendInputText('divCtnNodeNone', '4', '10', 'None index')">Add</a>&nbsp;
+                        <a href="javascript:removeLastInputText('divCtnNodeNone')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-right:0.5em">
+                        <label>Client: </label>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="divClientAllow">allow: </label>
+                    </td>
+                    <td>
+                        <div id="divClientAllow">
+                            <input type="text" maxlength="20" size="30" placeholder="Client ID" />
+                        </div>
+                        <a href="javascript:appendInputText('divClientAllow', '20', '30', 'Client ID')">Add</a>&nbsp;
+                        <a href="javascript:removeLastInputText('divClientAllow')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:0.5em">
+                        <label for="divClientDeny">deny: </label>
+                    </td>
+                    <td style="padding-top:0.5em">
+                        <div id="divClientDeny">
+                            <input type="text" maxlength="20" size="30" placeholder="Client ID" />
+                        </div>
+                        <a href="javascript:appendInputText('divClientDeny', '20', '30', 'Client ID')">Add</a>&nbsp;
+                        <a href="javascript:removeLastInputText('divClientDeny')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:0.5em">
+                        <label for="divClientNone">none: </label>
+                    </td>
+                    <td style="padding-top:0.5em">
+                        <div id="divClientNone">
+                            <input type="text" maxlength="20" size="30" placeholder="Client ID" />
+                        </div>
+                        <a href="javascript:appendInputText('divClientNone', '20', '30', 'Client ID')">Add</a>&nbsp;
+                        <a href="javascript:removeLastInputText('divClientNone')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-right:0.5em">
+                        <label>Device: </label>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="divDeviceAllow">allow: </label>
+                    </td>
+                    <td>
+                        <div id="divDeviceAllow">
+                            <div style="margin-bottom:0.3em">
+                                <input type="text" maxlength="20" size="30" placeholder="Device ID" />
+                                <br/><label>product unique ID: </label><input type="checkbox"/>
+                            </div>
+                        </div>
+                        <a href="javascript:appendDeviceIdInput('divDeviceAllow', '20', '30', 'Device ID')">Add</a>&nbsp;
+                        <a href="javascript:removeDeviceIdInput('divDeviceAllow')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:0.5em">
+                        <label for="divDeviceDeny">deny: </label>
+                    </td>
+                    <td style="padding-top:0.5em">
+                        <div id="divDeviceDeny">
+                            <div style="margin-bottom:0.3em">
+                                <input type="text" maxlength="20" size="30" placeholder="Device ID" />
+                                <br/><label>product unique ID: </label><input type="checkbox"/>
+                            </div>
+                        </div>
+                        <a href="javascript:appendDeviceIdInput('divDeviceDeny', '20', '30', 'Device ID')">Add</a>&nbsp;
+                        <a href="javascript:removeDeviceIdInput('divDeviceDeny')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:0.5em">
+                        <label for="divDeviceNone">none: </label>
+                    </td>
+                    <td style="padding-top:0.5em">
+                        <div id="divDeviceNone">
+                            <div style="margin-bottom:0.3em">
+                                <input type="text" maxlength="20" size="30" placeholder="Device ID" />
+                                <br/><label>product unique ID: </label><input type="checkbox"/>
+                            </div>
+                        </div>
+                        <a href="javascript:appendDeviceIdInput('divDeviceNone', '20', '30', 'Device ID')">Add</a>&nbsp;
+                        <a href="javascript:removeDeviceIdInput('divDeviceNone')">Remove</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnSetPermissionRights" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selSetPermRightsEventName')){setPermissionRights(document.getElementById('selSetPermRightsEventName').value, getPermRightsToSet())}else{return false}">Set Rights</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Open WebSocket notification channel:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="selOpenNotifyEventName">Notification event: </label>
+                    </td>
+                    <td>
+                        <select id="selOpenNotifyEventName">
+                            <option ></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnOpenWsNotifyChannel" style="margin-top:10px" onclick="if(checkNotifyEventNameField('selOpenNotifyEventName')){openWsNtfyChannel(document.getElementById('selOpenNotifyEventName').value)}else{return false}">Open Notification Channel</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Close WebSocket notification channel:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="selCloseNotifyEventName">Notification event: </label>
+                    </td>
+                    <td>
+                        <select id="selCloseNotifyEventName">
+                            <option ></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnCloseWsNotifyChannel" style="margin-top:10px" onclick="if(checkNotifyEventNameField('selCloseNotifyEventName')){closeWsNtfyChannel(document.getElementById('selCloseNotifyEventName').value)}else{return false}">Close Notification Channel</button>
+                    </td>
+                </tr>
             </table>
         </div>
-        <div id="divResult" style="margin-top:1em">
-            <label>Result:</label><br/>
-            <p id="pReqResult"></p>
-        </div>
-        <script language="JavaScript">clearResult(); initApiClient()</script>
+        <table width="100%" style="margin-top:1em">
+            <tr>
+                <td valign="top" width="50%">
+                    <div id="divApiResult">
+                        <label>Catenis API Result:</label><br/>
+                        <p id="pApiResult"></p>
+                    </div>
+                </td>
+                <td valign="top" width="50%">
+                    <div id="divNtfyChannelActivity">
+                        <label>Notification channel activity:</label>&nbsp;&nbsp;<a href="javascript:clearWSActiviy()">Clear activity log</a><br/>
+                        <p id="pNtfyChannelActivity"></p>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <script language="JavaScript">
+            clearApiResult();
+            clearWSActiviy();
+            initApiClient();
+            fillPermEventNames(['selSetPermRightsEventName', 'selRetrvPermRightsEventName']);
+            fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
+        </script>
     </body>
 </html>
