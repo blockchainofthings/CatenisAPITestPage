@@ -96,8 +96,16 @@
                 ctnApiClient.setPermissionRights(eventName, rights, processResult);
             }
 
+            function checkEffectivePermissionRight(eventName, deviceId, isProdUniqueId) {
+                ctnApiClient.checkEffectivePermissionRight(eventName, deviceId, isProdUniqueId, processResult);
+            }
+
             function listNotificationEvents(cb) {
                 ctnApiClient.listNotificationEvents(typeof cb === 'function' ? cb : processResult);
+            }
+
+            function retrieveDeviceIdentificationInfo(deviceId, isProdUniqueId) {
+                ctnApiClient.retrieveDeviceIdentificationInfo(deviceId, isProdUniqueId, processResult);
             }
 
             function processMessageResult(err, data) {
@@ -134,18 +142,6 @@
                 }
                 else {
                     alert('Please enter a message');
-                    return false;
-                }
-            }
-
-            function requireTargetDevice() {
-                var trgtDev = document.getElementById('itxTrgtDeviceId').value;
-
-                if (trgtDev && trgtDev.length > 0) {
-                    return true;
-                }
-                else {
-                    alert('Please enter a target device ID');
                     return false;
                 }
             }
@@ -312,16 +308,29 @@
             }
 
             function checkPermEventNameField(ctrlId) {
-                var permEventName = document.getElementById(ctrlId);
+                var permEventNameCtrl = document.getElementById(ctrlId);
 
-                if (permEventName && checkUndefined(permEventName.value) === undefined) {
+                if (permEventNameCtrl && checkUndefined(permEventNameCtrl.value) === undefined) {
                     alert('Please select a permission event');
-                    permEventName.focus();
+                    permEventNameCtrl.focus();
                     return false;
                 }
 
                 return true;
             }
+
+            function checkDeviceIdField(ctrlId) {
+                var devIdCtrl = document.getElementById(ctrlId);
+
+                if (devIdCtrl && checkUndefined(devIdCtrl.value) === undefined) {
+                    alert('Please enter a target device ID');
+                    devIdCtrl.focus();
+                    return false;
+                }
+
+                return true;
+            }
+
 
             function fillPermEventNames(selCtrlIds) {
                 listPermissionEvents(function (err, result) {
@@ -651,7 +660,7 @@
                                     <td>
                                         <input id="itxTrgtDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
                                         <br/><label for="cbxProdUniqId">product unique ID: </label><input id="cbxProdUniqId" type="checkbox"/>
-                                        <br/><button id="btnSendMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMessage() && requireTargetDevice()){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
+                                        <br/><button id="btnSendMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMessage() && checkDeviceIdField('itxTrgtDeviceId')){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
                                     </td>
                                 </tr>
                             </table>
@@ -772,6 +781,27 @@
                     <td></td>
                     <td>
                         <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkListMessagesDateFields()){listMessages(checkUndefined(document.getElementById('selMsgAction').value),checkUndefined(document.getElementById('selMsgDirection').value),checkUndefined(document.getElementById('itxFromDeviceIds').value.trim()),checkUndefined(document.getElementById('itxToDeviceIds').value.trim()),checkUndefined(document.getElementById('itxFromDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('itxToDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('selReadState').value),formatDate(document.getElementById('idtStartDate').value),formatDate(document.getElementById('idtEndDate').value))}else{return false}">List Messages</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Retrieve Device Identification Info:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="itxOtherDeviceId">Device ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxOtherDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                        <br/><label for="cbxOtherDeviceProdUniqId">product unique ID: </label><input id="cbxOtherDeviceProdUniqId" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnRetrvDevIdentityInfo" style="margin-top:10px" onclick="clearApiResult();if(checkDeviceIdField('itxOtherDeviceId')){retrieveDeviceIdentificationInfo(document.getElementById('itxOtherDeviceId').value.trim(),document.getElementById('cbxOtherDeviceProdUniqId').checked.toString())}else{return false}">Retrieve Device Info</button>
                     </td>
                 </tr>
 
@@ -974,6 +1004,37 @@
 
                 <tr>
                     <td colspan="2" style="padding-top:1.25em">
+                        Check effective permission right:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="selCheckEffectivePermRight">Permission event: </label>
+                    </td>
+                    <td>
+                        <select id="selCheckEffectivePermRight">
+                            <option ></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right">
+                        <label for="itxObjDeviceId">Device ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxObjDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                        <br/><label for="cbxObjDeviceProdUniqId">product unique ID: </label><input id="cbxObjDeviceProdUniqId" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnCheckEffectivePermRight" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selCheckEffectivePermRight') && checkDeviceIdField('itxObjDeviceId')){checkEffectivePermissionRight(document.getElementById('selCheckEffectivePermRight').value,document.getElementById('itxObjDeviceId').value.trim(),document.getElementById('cbxObjDeviceProdUniqId').checked.toString())}else{return false}">Check Effective Right</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
                         Open WebSocket notification channel:
                     </td>
                 </tr>
@@ -1037,7 +1098,7 @@
             clearApiResult();
             clearWSActiviy();
             initApiClient();
-            fillPermEventNames(['selSetPermRightsEventName', 'selRetrvPermRightsEventName']);
+            fillPermEventNames(['selSetPermRightsEventName', 'selRetrvPermRightsEventName', 'selCheckEffectivePermRight']);
             fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
         </script>
     </body>
