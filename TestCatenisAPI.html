@@ -41,6 +41,9 @@
                 }
 
                 ctnApiClient = new CtnApiClient(device.deviceId, device.apiAccessSecret, env.opts);
+
+                fillPermEventNames(['selSetPermRightsEventName', 'selRetrvPermRightsEventName', 'selCheckEffectivePermRight']);
+                fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
             }
 
             function logMessage(message, encoding, encrypt, storage) {
@@ -342,6 +345,7 @@
                             selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
 
                             selCtrlIds.forEach(function (selCtrlId) {
+                                emptySelCtrl(selCtrlId);
                                 var selCtrl = document.getElementById(selCtrlId);
 
                                 if (selCtrl) {
@@ -356,6 +360,22 @@
                         }
                     }
                 });
+            }
+
+            function emptySelCtrl(selCtrlId) {
+                var selCtrl = document.getElementById(selCtrlId);
+
+                if (selCtrl) {
+                    var numOptions = selCtrl.options.length;
+
+                    if (numOptions > 1) {
+                        for (var idx = numOptions - 1; idx > 0; idx--) {
+                            selCtrl.remove(selCtrl[idx]);
+                        }
+
+                        selCtrl.selectedIndex = 0;
+                    }
+                }
             }
 
             function getPermRightsToSet() {
@@ -555,6 +575,7 @@
                             selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
 
                             selCtrlIds.forEach(function (selCtrlId) {
+                                emptySelCtrl(selCtrlId);
                                 var selCtrl = document.getElementById(selCtrlId);
 
                                 if (selCtrl) {
@@ -1098,8 +1119,6 @@
             clearApiResult();
             clearWSActiviy();
             initApiClient();
-            fillPermEventNames(['selSetPermRightsEventName', 'selRetrvPermRightsEventName', 'selCheckEffectivePermRight']);
-            fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
         </script>
     </body>
 </html>
