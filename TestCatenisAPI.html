@@ -348,6 +348,8 @@
                                 emptySelCtrl(selCtrlId);
                                 var selCtrl = document.getElementById(selCtrlId);
 
+                                selCtrl.appendChild(document.createElement('option'));
+
                                 if (selCtrl) {
                                     Object.keys(result.data).forEach(function (eventName) {
                                         var optElem = document.createElement('option');
@@ -356,6 +358,8 @@
                                         selCtrl.appendChild(optElem);
                                     });
                                 }
+
+                                selCtrl.selectedIndex = 0;
                             });
                         }
                     }
@@ -368,12 +372,10 @@
                 if (selCtrl) {
                     var numOptions = selCtrl.options.length;
 
-                    if (numOptions > 1) {
-                        for (var idx = numOptions - 1; idx > 0; idx--) {
+                    if (numOptions > 0) {
+                        for (var idx = numOptions - 1; idx >= 0; idx--) {
                             selCtrl.remove(selCtrl[idx]);
                         }
-
-                        selCtrl.selectedIndex = 0;
                     }
                 }
             }
@@ -577,6 +579,8 @@
                             selCtrlIds.forEach(function (selCtrlId) {
                                 emptySelCtrl(selCtrlId);
                                 var selCtrl = document.getElementById(selCtrlId);
+
+                                selCtrl.appendChild(document.createElement('option'));
 
                                 if (selCtrl) {
                                     Object.keys(result.data).forEach(function (eventName) {
