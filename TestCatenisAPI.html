@@ -54,11 +54,12 @@
                 }, processMessageResult);
             }
 
-            function sendMessage(targetDeviceId, isProdUniqueId, message, encoding, encrypt, storage) {
+            function sendMessage(targetDeviceId, isProdUniqueId, message, readConfirmation, encoding, encrypt, storage) {
                 ctnApiClient.sendMessage({
                     id: targetDeviceId,
                     isProdUniqueId: isProdUniqueId
                 }, message, {
+                    readConfirmation: readConfirmation,
                     encoding: encoding,
                     encrypt: encrypt,
                     storage: storage
@@ -685,7 +686,8 @@
                                     <td>
                                         <input id="itxTrgtDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
                                         <br/><label for="cbxProdUniqId">product unique ID: </label><input id="cbxProdUniqId" type="checkbox"/>
-                                        <br/><button id="btnSendMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMessage() && checkDeviceIdField('itxTrgtDeviceId')){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
+                                        <br/><label for="cbxReadConfirm" style="margin-top:13px">read confirmation: </label><input id="cbxReadConfirm" type="checkbox" style="margin-top:13px" />
+                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireMessage() && checkDeviceIdField('itxTrgtDeviceId')){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('cbxReadConfirm').checked, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
                                     </td>
                                 </tr>
                             </table>
