@@ -337,32 +337,30 @@
 
 
             function fillPermEventNames(selCtrlIds) {
-                listPermissionEvents(function (err, result) {
+                listPermissionEvents(function (err, data) {
                     if (err) {
                         console.debug('Error calling List Permission Events Catenis API method', err);
                     }
                     else {
-                        if (result.status === 'success') {
-                            selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
+                        selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
 
-                            selCtrlIds.forEach(function (selCtrlId) {
-                                emptySelCtrl(selCtrlId);
-                                var selCtrl = document.getElementById(selCtrlId);
+                        selCtrlIds.forEach(function (selCtrlId) {
+                            emptySelCtrl(selCtrlId);
+                            var selCtrl = document.getElementById(selCtrlId);
 
-                                selCtrl.appendChild(document.createElement('option'));
+                            selCtrl.appendChild(document.createElement('option'));
 
-                                if (selCtrl) {
-                                    Object.keys(result.data).forEach(function (eventName) {
-                                        var optElem = document.createElement('option');
-                                        optElem.setAttribute('value', eventName);
-                                        optElem.innerText = eventName + ' - ' + result.data[eventName];
-                                        selCtrl.appendChild(optElem);
-                                    });
-                                }
+                            if (selCtrl) {
+                                Object.keys(data).forEach(function (eventName) {
+                                    var optElem = document.createElement('option');
+                                    optElem.setAttribute('value', eventName);
+                                    optElem.innerText = eventName + ' - ' + data[eventName];
+                                    selCtrl.appendChild(optElem);
+                                });
+                            }
 
-                                selCtrl.selectedIndex = 0;
-                            });
-                        }
+                            selCtrl.selectedIndex = 0;
+                        });
                     }
                 });
             }
@@ -569,30 +567,28 @@
             }
 
             function fillNotifyEventNames(selCtrlIds) {
-                listNotificationEvents(function (err, result) {
+                listNotificationEvents(function (err, data) {
                     if (err) {
                         console.debug('Error calling List Notification Events Catenis API method', err);
                     }
                     else {
-                        if (result.status === 'success') {
-                            selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
+                        selCtrlIds = Array.isArray(selCtrlIds) ? selCtrlIds : [selCtrlIds];
 
-                            selCtrlIds.forEach(function (selCtrlId) {
-                                emptySelCtrl(selCtrlId);
-                                var selCtrl = document.getElementById(selCtrlId);
+                        selCtrlIds.forEach(function (selCtrlId) {
+                            emptySelCtrl(selCtrlId);
+                            var selCtrl = document.getElementById(selCtrlId);
 
-                                selCtrl.appendChild(document.createElement('option'));
+                            selCtrl.appendChild(document.createElement('option'));
 
-                                if (selCtrl) {
-                                    Object.keys(result.data).forEach(function (eventName) {
-                                        var optElem = document.createElement('option');
-                                        optElem.setAttribute('value', eventName);
-                                        optElem.innerText = eventName + ' - ' + result.data[eventName];
-                                        selCtrl.appendChild(optElem);
-                                    });
-                                }
-                            });
-                        }
+                            if (selCtrl) {
+                                Object.keys(data).forEach(function (eventName) {
+                                    var optElem = document.createElement('option');
+                                    optElem.setAttribute('value', eventName);
+                                    optElem.innerText = eventName + ' - ' + data[eventName];
+                                    selCtrl.appendChild(optElem);
+                                });
+                            }
+                        });
                     }
                 });
             }
