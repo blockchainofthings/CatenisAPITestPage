@@ -16,7 +16,7 @@
             }
 
             function initApiClient() {
-                var env = document.getElementById('selEnvironment').value === 'localhost' ? {
+                var env = getFieldValue('selEnvironment') === 'localhost' ? {
                             defaultDevice: {
                                 deviceId: 'dK9xt9QnNWM4TBTfZPRQ',
                                 apiAccessSecret: 'fb1f2be9889ed42a4ddf08f13fe77c13aeb237594d0449e047d5f9ae6a8d83447042a2f6cb7a413c1feecfdc4d9b6cc591aaa95d690d5a563089f7c76ea2932b'
@@ -112,9 +112,86 @@
                 ctnApiClient.retrieveDeviceIdentificationInfo(deviceId, isProdUniqueId, processResult);
             }
 
+            function issueAsset(name, description, canReissue, decimalPlaces, amount, holdingDeviceId, isProdUniqueId) {
+                var holdingDevice;
+
+                if (holdingDeviceId) {
+                    holdingDevice = {
+                        id: holdingDeviceId
+                    };
+
+                    if (isProdUniqueId) {
+                        holdingDevice.isProdUniqueId = isProdUniqueId;
+                    }
+                }
+
+                ctnApiClient.issueAsset({
+                    name: name,
+                    description: description,
+                    canReissue: canReissue,
+                    decimalPlaces: decimalPlaces
+                }, amount, holdingDevice, processMessageResult);
+            }
+
+            function reissueAsset(assetId, amount, holdingDeviceId, isProdUniqueId) {
+                var holdingDevice;
+
+                if (holdingDeviceId) {
+                    holdingDevice = {
+                        id: holdingDeviceId
+                    };
+
+                    if (isProdUniqueId) {
+                        holdingDevice.isProdUniqueId = isProdUniqueId;
+                    }
+                }
+
+                ctnApiClient.reissueAsset(assetId, amount, holdingDevice, processMessageResult);
+            }
+            
+            function transferAsset(assetId, amount, receivingDeviceId, isProdUniqueId) {
+                var receivingDevice;
+
+                if (receivingDeviceId) {
+                    receivingDevice = {
+                        id: receivingDeviceId
+                    };
+
+                    if (isProdUniqueId) {
+                        receivingDevice.isProdUniqueId = isProdUniqueId;
+                    }
+                }
+
+                ctnApiClient.transferAsset(assetId, amount, receivingDevice, processMessageResult);
+            }
+
+            function retrieveAssetInfo(assetId) {
+                ctnApiClient.retrieveAssetInfo(assetId, processMessageResult);
+            }
+
+            function getAssetBalance(assetId) {
+                ctnApiClient.getAssetBalance(assetId, processMessageResult);
+            }
+
+            function listOwnedAssets(limit, skip) {
+                ctnApiClient.listOwnedAssets(limit, skip, processMessageResult);
+            }
+
+            function listIssuedAssets(limit, skip) {
+                ctnApiClient.listIssuedAssets(limit, skip, processMessageResult);
+            }
+
+            function retrieveAssetIssuanceHistory(assetId, startDate, endDate) {
+                ctnApiClient.retrieveAssetIssuanceHistory(assetId, startDate, endDate, processMessageResult);
+            }
+
+            function listAssetHolders(assetId, limit, skip) {
+                ctnApiClient.listAssetHolders(assetId, limit, skip, processMessageResult);
+            }
+
             function processMessageResult(err, data) {
-                if (!err && typeof data.data === 'object' && data.data !== null && typeof data.data.messageId === 'string') {
-                    lastMsgId = data.data.messageId;
+                if (!err && typeof data === 'object' && data !== null && typeof data.messageId === 'string') {
+                    lastMsgId = data.messageId;
                 }
 
                 processResult(err, data);
@@ -138,26 +215,33 @@
                 document.getElementById('pApiResult').innerHTML = '';
             }
 
-            function requireMessage() {
-                var msg = document.getElementById('itxMessage').value;
-
-                if (msg && msg.length > 0) {
-                    return true;
-                }
-                else {
-                    alert('Please enter a message');
-                    return false;
-                }
+            function getFieldValue(ctrlId, trim) {
+                var value = document.getElementById(ctrlId).value;
+                return trim ? value.trim() : value;
             }
 
-            function requireMsgId() {
-                var messageId = document.getElementById('itxMsgId').value;
+            function parseNumber(val) {
+                return val ? parseInt(val) : val;
+            }
 
-                if (messageId && messageId.length > 0) {
+            function parseAmount(val) {
+                return val ? parseFloat(val) : val;
+            }
+
+            function isFieldChecked(ctrlId) {
+                return document.getElementById(ctrlId).checked;
+            }
+
+            function requireField(ctrlId, fieldName, startsWithVowel, trim) {
+                var fieldCtrl = document.getElementById(ctrlId);
+                var fieldValue = trim ? fieldCtrl.value.trim() : fieldCtrl.value;
+
+                if (fieldValue && fieldValue.length > 0) {
                     return true;
                 }
                 else {
-                    alert('Please enter a message ID');
+                    alert('Please enter ' + (startsWithVowel ? 'an ' : 'a ') + fieldName);
+                    fieldCtrl.focus();
                     return false;
                 }
             }
@@ -165,6 +249,14 @@
             function checkListMessagesDateFields() {
                 if (checkDateField('idtStartDate')) {
                     return checkDateField('idtEndDate');
+                }
+
+                return false;
+            }
+
+            function checkAssetIssuanceHistoryDateFields() {
+                if (checkDateField('idtStartDate2')) {
+                    return checkDateField('idtEndDate2');
                 }
 
                 return false;
@@ -192,6 +284,42 @@
                 }
 
                 return undefined;
+            }
+
+            function checkNumberField(ctrlId) {
+                var fieldCtrl = document.getElementById(ctrlId);
+
+                if (fieldCtrl) {
+                    var val = parseInt(fieldCtrl.value);
+
+                    if (isNaN(val)) {
+                        alert('Invalid number');
+                        fieldCtrl.focus();
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            function checkAmountField(ctrlId) {
+                var fieldCtrl = document.getElementById(ctrlId);
+
+                if (fieldCtrl) {
+                    var val = parseFloat(fieldCtrl.value);
+
+                    if (isNaN(val)) {
+                        alert('Invalid amount');
+                        fieldCtrl.focus();
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                return false;
             }
 
             function updateDeviceId(ctrl) {
@@ -323,18 +451,17 @@
                 return true;
             }
 
-            function checkDeviceIdField(ctrlId) {
+            function checkDeviceIdField(ctrlId, qualifier, startsWithVowel, trim) {
                 var devIdCtrl = document.getElementById(ctrlId);
 
-                if (devIdCtrl && checkUndefined(devIdCtrl.value) === undefined) {
-                    alert('Please enter a target device ID');
+                if (devIdCtrl && checkUndefined(getFieldValue(ctrlId, trim)) === undefined) {
+                    alert('Please enter ' + (qualifier && startsWithVowel ? 'an ' : 'a ') + (qualifier ? qualifier + ' ' : '') + 'device ID');
                     devIdCtrl.focus();
                     return false;
                 }
 
                 return true;
             }
-
 
             function fillPermEventNames(selCtrlIds) {
                 listPermissionEvents(function (err, data) {
@@ -382,7 +509,7 @@
             function getPermRightsToSet() {
                 var rights = {};
 
-                var sysRight = checkUndefined(document.getElementById('selSysRight').value);
+                var sysRight = checkUndefined(getFieldValue('selSysRight'));
                 if (sysRight)
                     rights.system = sysRight;
 
@@ -642,6 +769,45 @@
                     wsNtfyChannels[eventName].close();
                 }
             }
+
+            function selectPanel(selectedPanelId) {
+                var panelIds = [
+                    'divMessage',
+                    'divPermNotif',
+                    'divAsset'
+                ];
+
+                panelIds.forEach(function (id) {
+                    document.getElementById(id).style.display = id === selectedPanelId ? 'block' : 'none';
+                });
+            }
+
+            function setAssetIssueFields(reissue) {
+                var reissueRowIds = [
+                    'trAssetId'
+                ];
+                var issueRowIds = [
+                    'trAssetName',
+                    'trAssetDescription',
+                    'trCanReissue',
+                    'trDecimalPlaces'
+                ];
+
+                function displayElements(ids, show) {
+                    ids.forEach(function (id) {
+                        document.getElementById(id).style.display = show ? 'table-row' : 'none';
+                    });
+                }
+
+                if (reissue) {
+                    displayElements(reissueRowIds, true);
+                    displayElements(issueRowIds, false);
+                }
+                else {
+                    displayElements(reissueRowIds, false);
+                    displayElements(issueRowIds, true);
+                }
+            }
         </script>
     </head>
     <body>
@@ -653,7 +819,10 @@
             <br/><label for="itxDeviceId">Device ID: </label><input id="itxDeviceId" maxlength="20" size="30" onchange="updateDeviceId(this)"/>
             <script language="JavaScript">resetDeviceIdField()</script>
         </div>
-        <div id="divMessage" style="margin-top:1em">
+        <div style="margin-top:1em">
+            <a href="javascript:selectPanel('divMessage')">Messages</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAsset')">Assets</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divPermNotif')">Permission & Notification</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel(null)">None</a>
+        </div>
+        <div id="divMessage" style="margin-top:1em; display:none">
             <table>
                 <tr>
                     <td valign="top" align="right">
@@ -672,7 +841,7 @@
                             <option value="embedded">Embedded</option>
                             <option value="external">External</option>
                         </select>
-                        <br/><button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMessage()){logMessage(document.getElementById('itxMessage').value, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Log Message</button>
+                        <br/><button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMessage','message')){logMessage(getFieldValue('itxMessage'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'))}else{return false}">Log Message</button>
                         <div style="margin-top:1em">
                             <table>
                                 <tr>
@@ -683,7 +852,7 @@
                                         <input id="itxTrgtDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
                                         <br/><label for="cbxProdUniqId">product unique ID: </label><input id="cbxProdUniqId" type="checkbox"/>
                                         <br/><label for="cbxReadConfirm" style="margin-top:13px">read confirmation: </label><input id="cbxReadConfirm" type="checkbox" style="margin-top:13px" />
-                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireMessage() && checkDeviceIdField('itxTrgtDeviceId')){sendMessage(document.getElementById('itxTrgtDeviceId').value, document.getElementById('cbxProdUniqId').checked, document.getElementById('itxMessage').value, document.getElementById('cbxReadConfirm').checked, document.getElementById('selMsgEncoding').value, document.getElementById('cbxMsgEncrypt').checked, document.getElementById('selMsgStorage').value)}else{return false}">Send Message</button>
+                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMessage','message') && checkDeviceIdField('itxTrgtDeviceId','target')){sendMessage(getFieldValue('itxTrgtDeviceId'), isFieldChecked('cbxProdUniqId'), getFieldValue('itxMessage'), isFieldChecked('cbxReadConfirm'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'))}else{return false}">Send Message</button>
                                     </td>
                                 </tr>
                             </table>
@@ -697,13 +866,13 @@
                     <td style="padding-top:1em">
                         <input id="itxMsgId" style="margin-bottom:0.5em" type="text" maxlength="64" size="80"/>
                         <div width="100%" align="right" style="margin-right:30px;margin-bottom:-1em"><a href="javascript:fillWithLastMsgId()">Fill with last message ID</a></div>
-                        <button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireMsgId()){retrieveMessageContainer(document.getElementById('itxMsgId').value)}else{return false}">Retrieve Message Container</button>
+                        <button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){retrieveMessageContainer(getFieldValue('itxMsgId'))}else{return false}">Retrieve Message Container</button>
                         <br/><label for="selRdMsgEncoding">encoding: </label><select id="selRdMsgEncoding">
                             <option value="utf8" selected>UTF-8</option>
                             <option value="base64">Base-64</option>
                             <option value="hex">Hex</option>
                         </select>
-                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireMsgId()){readMessage(document.getElementById('itxMsgId').value, document.getElementById('selRdMsgEncoding').value)}else{return false}">Read Message</button>
+                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){readMessage(getFieldValue('itxMsgId'), getFieldValue('selRdMsgEncoding'))}else{return false}">Read Message</button>
                     </td>
                 </tr>
 
@@ -803,12 +972,15 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkListMessagesDateFields()){listMessages(checkUndefined(document.getElementById('selMsgAction').value),checkUndefined(document.getElementById('selMsgDirection').value),checkUndefined(document.getElementById('itxFromDeviceIds').value.trim()),checkUndefined(document.getElementById('itxToDeviceIds').value.trim()),checkUndefined(document.getElementById('itxFromDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('itxToDevProdUniqueIds').value.trim()),checkUndefined(document.getElementById('selReadState').value),formatDate(document.getElementById('idtStartDate').value),formatDate(document.getElementById('idtEndDate').value))}else{return false}">List Messages</button>
+                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkListMessagesDateFields()){listMessages(checkUndefined(getFieldValue('selMsgAction')),checkUndefined(getFieldValue('selMsgDirection')),checkUndefined(getFieldValue('itxFromDeviceIds',true)),checkUndefined(getFieldValue('itxToDeviceIds',true)),checkUndefined(getFieldValue('itxFromDevProdUniqueIds',true)),checkUndefined(getFieldValue('itxToDevProdUniqueIds',true)),checkUndefined(getFieldValue('selReadState')),formatDate(getFieldValue('idtStartDate')),formatDate(getFieldValue('idtEndDate')))}else{return false}">List Messages</button>
                     </td>
                 </tr>
-
+           </table>
+        </div>
+        <div id="divPermNotif" style="margin-top:1em; display:none">
+            <table>
                 <tr>
-                    <td colspan="2" style="padding-top:1.25em">
+                    <td colspan="2">
                         Retrieve Device Identification Info:
                     </td>
                 </tr>
@@ -824,7 +996,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnRetrvDevIdentityInfo" style="margin-top:10px" onclick="clearApiResult();if(checkDeviceIdField('itxOtherDeviceId')){retrieveDeviceIdentificationInfo(document.getElementById('itxOtherDeviceId').value.trim(),document.getElementById('cbxOtherDeviceProdUniqId').checked.toString())}else{return false}">Retrieve Device Info</button>
+                        <button id="btnRetrvDevIdentityInfo" style="margin-top:10px" onclick="clearApiResult();if(checkDeviceIdField('itxOtherDeviceId')){retrieveDeviceIdentificationInfo(getFieldValue('itxOtherDeviceId',true),isFieldChecked('cbxOtherDeviceProdUniqId').toString())}else{return false}">Retrieve Device Info</button>
                     </td>
                 </tr>
 
@@ -846,7 +1018,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnRetrvPermissionRights" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selRetrvPermRightsEventName')){retrievePermissionRights(document.getElementById('selRetrvPermRightsEventName').value)}else{return false}">Retrieve Rights</button>
+                        <button id="btnRetrvPermissionRights" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selRetrvPermRightsEventName')){retrievePermissionRights(getFieldValue('selRetrvPermRightsEventName'))}else{return false}">Retrieve Rights</button>
                     </td>
                 </tr>
 
@@ -1021,7 +1193,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnSetPermissionRights" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selSetPermRightsEventName')){setPermissionRights(document.getElementById('selSetPermRightsEventName').value, getPermRightsToSet())}else{return false}">Set Rights</button>
+                        <button id="btnSetPermissionRights" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selSetPermRightsEventName')){setPermissionRights(getFieldValue('selSetPermRightsEventName'), getPermRightsToSet())}else{return false}">Set Rights</button>
                     </td>
                 </tr>
 
@@ -1052,7 +1224,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnCheckEffectivePermRight" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selCheckEffectivePermRight') && checkDeviceIdField('itxObjDeviceId')){checkEffectivePermissionRight(document.getElementById('selCheckEffectivePermRight').value,document.getElementById('itxObjDeviceId').value.trim(),document.getElementById('cbxObjDeviceProdUniqId').checked.toString())}else{return false}">Check Effective Right</button>
+                        <button id="btnCheckEffectivePermRight" style="margin-top:10px" onclick="clearApiResult();if(checkPermEventNameField('selCheckEffectivePermRight') && checkDeviceIdField('itxObjDeviceId')){checkEffectivePermissionRight(getFieldValue('selCheckEffectivePermRight'),getFieldValue('itxObjDeviceId',true),isFieldChecked('cbxObjDeviceProdUniqId').toString())}else{return false}">Check Effective Right</button>
                     </td>
                 </tr>
 
@@ -1074,7 +1246,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnOpenWsNotifyChannel" style="margin-top:10px" onclick="if(checkNotifyEventNameField('selOpenNotifyEventName')){openWsNtfyChannel(document.getElementById('selOpenNotifyEventName').value)}else{return false}">Open Notification Channel</button>
+                        <button id="btnOpenWsNotifyChannel" style="margin-top:10px" onclick="if(checkNotifyEventNameField('selOpenNotifyEventName')){openWsNtfyChannel(getFieldValue('selOpenNotifyEventName'))}else{return false}">Open Notification Channel</button>
                     </td>
                 </tr>
 
@@ -1096,7 +1268,292 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnCloseWsNotifyChannel" style="margin-top:10px" onclick="if(checkNotifyEventNameField('selCloseNotifyEventName')){closeWsNtfyChannel(document.getElementById('selCloseNotifyEventName').value)}else{return false}">Close Notification Channel</button>
+                        <button id="btnCloseWsNotifyChannel" style="margin-top:10px" onclick="if(checkNotifyEventNameField('selCloseNotifyEventName')){closeWsNtfyChannel(getFieldValue('selCloseNotifyEventName'))}else{return false}">Close Notification Channel</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div id="divAsset" style="margin-top:1em; display:none">
+            <table>
+                <tr>
+                    <td colspan="2">
+                        Issue asset:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxReissue">Reissue an existing asset: </label>
+                    </td>
+                    <td>
+                        <input id="cbxReissue" type="checkbox" onclick="setAssetIssueFields(this.checked)"/>
+                    </td>
+                </tr>
+                <tr id="trAssetId" style="display:none">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr id="trAssetName">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetName">asset name: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetName" type="text" maxlength="25" size="25"/>
+                    </td>
+                </tr>
+                <tr id="trAssetDescription">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetDescription">asset description: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetDescription" type="text" maxlength="80" size="80"/>
+                    </td>
+                </tr>
+                <tr id="trCanReissue">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxCanReissue">can reissue: </label>
+                    </td>
+                    <td>
+                        <input id="cbxCanReissue" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr id="trDecimalPlaces">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxDecimalPlaces">decimal places: </label>
+                    </td>
+                    <td>
+                        <input id="itxDecimalPlaces" type="text" maxlength="1" size="1"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxIssueAmount">amount: </label>
+                    </td>
+                    <td>
+                        <input id="itxIssueAmount" type="text" maxlength="17" size="17"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" >
+                        <label for="itxHoldDeviceId">Holding device ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxHoldDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                        <br/><label for="cbxProdUniqId2">product unique ID: </label><input id="cbxProdUniqId2" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnIssueAsset" style="margin-top:8px" onclick="clearApiResult(); if(isFieldChecked('cbxReissue')){if(requireField('itxAssetId','asset ID',true,true) && requireField('itxIssueAmount','amount',true,true) && checkAmountField('itxIssueAmount')){reissueAsset(getFieldValue('itxAssetId',true),parseAmount(getFieldValue('itxIssueAmount')),checkUndefined(getFieldValue('itxHoldDeviceId',true)),isFieldChecked('cbxProdUniqId2'))}else{return false}}else{if(requireField('itxAssetName','asset name',true,true) && requireField('itxDecimalPlaces','value for decimal places',false,true) && checkNumberField('itxDecimalPlaces') && requireField('itxIssueAmount','amount',true,true) && checkAmountField('itxIssueAmount')){issueAsset(getFieldValue('itxAssetName',true),checkUndefined(getFieldValue('itxAssetDescription',true)),isFieldChecked('cbxCanReissue'),parseNumber(getFieldValue('itxDecimalPlaces')),parseAmount(getFieldValue('itxIssueAmount')),checkUndefined(getFieldValue('itxHoldDeviceId',true)),isFieldChecked('cbxProdUniqId2'))}else{return false}}">Issue Asset</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Transfer asset:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId2">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId2" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxTransferAmount">amount: </label>
+                    </td>
+                    <td>
+                        <input id="itxTransferAmount" type="text" maxlength="17" size="17"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" >
+                        <label for="itxRecvDeviceId">Receiving device ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxRecvDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                        <br/><label for="cbxProdUniqId3">product unique ID: </label><input id="cbxProdUniqId3" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnTransferAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId2','asset ID',true,true) && requireField('itxTransferAmount','amount',true,true) && checkAmountField('itxTransferAmount') && checkDeviceIdField('itxRecvDeviceId','receiving',false,true)){transferAsset(getFieldValue('itxAssetId2',true),parseAmount(getFieldValue('itxTransferAmount')),getFieldValue('itxRecvDeviceId',true),isFieldChecked('cbxProdUniqId3'))}else{return false}">Transfer Asset</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Retrieve asset info:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId3">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId3" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnAssetInfo" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId3','asset ID',true,true)){retrieveAssetInfo(getFieldValue('itxAssetId3',true))}else{return false}">Retrieve Info</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Get asset balance:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId4">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId4" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnAssetBalance" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId4','asset ID',true,true)){getAssetBalance(getFieldValue('itxAssetId4',true))}else{return false}">Get Balance</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        List owned assets:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxLimit">maximum returned entries: </label>
+                    </td>
+                    <td>
+                        <input id="itxLimit" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxSkip">entries to skip: </label>
+                    </td>
+                    <td>
+                        <input id="itxSkip" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnOwnedAssets" style="margin-top:8px" onclick="clearApiResult(); if((checkUndefined(getFieldValue('itxLimit',true)) === undefined || checkNumberField('itxLimit')) && (checkUndefined(getFieldValue('itxSkip',true)) === undefined || checkNumberField('itxSkip'))){listOwnedAssets(parseNumber(checkUndefined(getFieldValue('itxLimit',true))),parseNumber(checkUndefined(getFieldValue('itxSkip',true))))}else{return false}">List assets</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        List issued assets:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxLimit2">maximum returned entries: </label>
+                    </td>
+                    <td>
+                        <input id="itxLimit2" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxSkip2">entries to skip2: </label>
+                    </td>
+                    <td>
+                        <input id="itxSkip2" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnIssuedAssets" style="margin-top:8px" onclick="clearApiResult(); if((checkUndefined(getFieldValue('itxLimit2',true)) === undefined || checkNumberField('itxLimit2')) && (checkUndefined(getFieldValue('itxSkip2',true)) === undefined || checkNumberField('itxSkip2'))){listIssuedAssets(parseNumber(checkUndefined(getFieldValue('itxLimit2',true))),parseNumber(checkUndefined(getFieldValue('itxSkip2',true))))}else{return false}">List assets</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Retrieve asset issuance history:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId5">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId5" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="idtStartDate2">start date: </label>
+                    </td>
+                    <td>
+                        <input id="idtStartDate2" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="idtEndDate2">end date: </label>
+                    </td>
+                    <td>
+                        <input id="idtEndDate2" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnAssetIssuance" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId5','asset ID',true,true) && checkAssetIssuanceHistoryDateFields()){retrieveAssetIssuanceHistory(getFieldValue('itxAssetId5',true),formatDate(getFieldValue('idtStartDate2')),formatDate(getFieldValue('idtEndDate2')))}else{return false}">Retrieve issuance history</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        List asset holders:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId6">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId6" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxLimit3">maximum returned entries: </label>
+                    </td>
+                    <td>
+                        <input id="itxLimit3" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxSkip3">entries to skip2: </label>
+                    </td>
+                    <td>
+                        <input id="itxSkip3" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnAssetHolders" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId6','asset ID',true,true) && (checkUndefined(getFieldValue('itxLimit3',true)) === undefined || checkNumberField('itxLimit3')) && (checkUndefined(getFieldValue('itxSkip3',true)) === undefined || checkNumberField('itxSkip3'))){listAssetHolders(getFieldValue('itxAssetId6',true),parseNumber(checkUndefined(getFieldValue('itxLimit3',true))),parseNumber(checkUndefined(getFieldValue('itxSkip3',true))))}else{return false}">List holders</button>
                     </td>
                 </tr>
             </table>
