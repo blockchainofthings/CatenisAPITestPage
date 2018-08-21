@@ -16,7 +16,12 @@
             }
 
             function initApiClient() {
-                var env = getFieldValue('selEnvironment') === 'localhost' ? {
+                ctnApiClient = undefined;
+                var env;
+
+                switch (getFieldValue('selEnvironment')) {
+                    case 'development': {
+                        env = {
                             defaultDevice: {
                                 deviceId: 'dK9xt9QnNWM4TBTfZPRQ',
                                 apiAccessSecret: 'fb1f2be9889ed42a4ddf08f13fe77c13aeb237594d0449e047d5f9ae6a8d83447042a2f6cb7a413c1feecfdc4d9b6cc591aaa95d690d5a563089f7c76ea2932b'
@@ -25,15 +30,28 @@
                                 host: 'localhost:3000',
                                 secure: false
                             }
-                        } : {
+                        };
+                    }
+
+                    break;
+
+                    case 'sandbox': {
+                        env = {
                             defaultDevice: {
                                 deviceId: 'dL8zaQDcyNvxRW3FqsJd',
                                 apiAccessSecret: '2e080fe06bd9d6403639d8e7c8d4b518949fdbf1e76a651e29706135a98c73dc815ee7647f7cb9b5ae19b04010b32718f1b85aacdd281677aca7499eeb3275f7'
                             },
                             opts: {
-                                environment: 'beta'
+                                environment: 'sandbox'
                             }
                         };
+                    }
+
+                    break;
+
+                    default:
+                        throw new Error('Invalid Catenis environment');
+                }
 
                 if (!device.deviceId) {
                     device = env.defaultDevice;
@@ -813,8 +831,9 @@
     <body>
         <div id="divEnvironment">
             <label for="selEnvironment">Environment: </label><select id="selEnvironment" onchange="clearApiResult(); resetDevice(); initApiClient()">
-                <option value="localhost" selected>localhost</option>
-                <option value="Catenis-API">Catenis API server</option>
+                <option value="development" selected>Development</option>
+                <option value="sandbox">Sandbox</option>
+                <option value="prod">Production</option>
             </select>
             <br/><label for="itxDeviceId">Device ID: </label><input id="itxDeviceId" maxlength="20" size="30" onchange="updateDeviceId(this)"/>
             <script language="JavaScript">resetDeviceIdField()</script>
