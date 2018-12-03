@@ -58,7 +58,7 @@
                     resetDeviceIdField();
                 }
 
-                ctnApiClient = new CtnApiClient(device.deviceId, device.apiAccessSecret, env.opts);
+                ctnApiClient = new CatenisApiClient(device.deviceId, device.apiAccessSecret, env.opts);
 
                 fillPermEventNames(['selSetPermRightsEventName', 'selRetrvPermRightsEventName', 'selCheckEffectivePermRight']);
                 fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
@@ -93,17 +93,48 @@
             }
 
             function listMessages(action, direction, fromDeviceIds, toDeviceIds, fromDeviceProdUniqueIds, toDeviceProdUniqueIds, readState, startDate, endDate) {
-                ctnApiClient.listMessages({
+                var options = {
                     action: action,
                     direction: direction,
-                    fromDeviceIds: fromDeviceIds,
-                    toDeviceIds: toDeviceIds,
-                    fromDeviceProdUniqueIds: fromDeviceProdUniqueIds,
-                    toDeviceProdUniqueIds: toDeviceProdUniqueIds,
                     readState: readState,
                     startDate: startDate,
                     endDate: endDate
-                }, processResult);
+                };
+                var fromDevices = [];
+                if (fromDeviceIds) {
+                    fromDeviceIds.split(',').forEach(function (deviceId) {
+                        fromDevices.push({id: deviceId});
+                    });
+                }
+                if (fromDeviceProdUniqueIds) {
+                    fromDeviceProdUniqueIds.split(',').forEach(function (prodUniqueId) {
+                        fromDevices.push({
+                            id: prodUniqueId,
+                            isProdUniqueId: true
+                        });
+                    });
+                }
+                if (fromDevices.length > 0) {
+                    options.fromDevices = fromDevices;
+                }
+                var toDevices = [];
+                if (toDeviceIds) {
+                    toDeviceIds.split(',').forEach(function (deviceId) {
+                        toDevices.push({id: deviceId});
+                    });
+                }
+                if (toDeviceProdUniqueIds) {
+                    toDeviceProdUniqueIds.split(',').forEach(function (prodUniqueId) {
+                        toDevices.push({
+                            id: prodUniqueId,
+                            isProdUniqueId: true
+                        });
+                    });
+                }
+                if (toDevices.length > 0) {
+                    options.toDevices = toDevices;
+                }
+                ctnApiClient.listMessages(options, processResult);
             }
 
             function listPermissionEvents(cb) {
@@ -148,7 +179,7 @@
                     description: description,
                     canReissue: canReissue,
                     decimalPlaces: decimalPlaces
-                }, amount, holdingDevice, processMessageResult);
+                }, amount, holdingDevice, processResult);
             }
 
             function reissueAsset(assetId, amount, holdingDeviceId, isProdUniqueId) {
@@ -164,7 +195,7 @@
                     }
                 }
 
-                ctnApiClient.reissueAsset(assetId, amount, holdingDevice, processMessageResult);
+                ctnApiClient.reissueAsset(assetId, amount, holdingDevice, processResult);
             }
             
             function transferAsset(assetId, amount, receivingDeviceId, isProdUniqueId) {
@@ -180,31 +211,31 @@
                     }
                 }
 
-                ctnApiClient.transferAsset(assetId, amount, receivingDevice, processMessageResult);
+                ctnApiClient.transferAsset(assetId, amount, receivingDevice, processResult);
             }
 
             function retrieveAssetInfo(assetId) {
-                ctnApiClient.retrieveAssetInfo(assetId, processMessageResult);
+                ctnApiClient.retrieveAssetInfo(assetId, processResult);
             }
 
             function getAssetBalance(assetId) {
-                ctnApiClient.getAssetBalance(assetId, processMessageResult);
+                ctnApiClient.getAssetBalance(assetId, processResult);
             }
 
             function listOwnedAssets(limit, skip) {
-                ctnApiClient.listOwnedAssets(limit, skip, processMessageResult);
+                ctnApiClient.listOwnedAssets(limit, skip, processResult);
             }
 
             function listIssuedAssets(limit, skip) {
-                ctnApiClient.listIssuedAssets(limit, skip, processMessageResult);
+                ctnApiClient.listIssuedAssets(limit, skip, processResult);
             }
 
             function retrieveAssetIssuanceHistory(assetId, startDate, endDate) {
-                ctnApiClient.retrieveAssetIssuanceHistory(assetId, startDate, endDate, processMessageResult);
+                ctnApiClient.retrieveAssetIssuanceHistory(assetId, startDate, endDate, processResult);
             }
 
             function listAssetHolders(assetId, limit, skip) {
-                ctnApiClient.listAssetHolders(assetId, limit, skip, processMessageResult);
+                ctnApiClient.listAssetHolders(assetId, limit, skip, processResult);
             }
 
             function processMessageResult(err, data) {
@@ -226,7 +257,7 @@
             }
 
             function showApiResult(data, isError) {
-                document.getElementById('pApiResult').innerHTML = (isError ? '<span style="color: red;">ERROR:</span>' : '') + '<pre>' + JSON.stringify(data, null, '  ') + '</pre>';
+                document.getElementById('pApiResult').innerHTML = isError ? '<span style="color: red;">ERROR:</span>' + (typeof data === 'object' && data !== null && data.message ? '<br>' + data.message: '<pre>' + JSON.stringify(data, null, '  ') + '</pre>') : '<pre>' + JSON.stringify(data, null, '  ') + '</pre>';
             }
 
             function clearApiResult() {
