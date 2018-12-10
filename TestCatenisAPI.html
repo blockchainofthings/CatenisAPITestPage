@@ -795,8 +795,8 @@
                         delete wsNtfyChannels[eventName];
                     });
 
-                    wsNtfyChannel.addListener('message', function (data) {
-                        showWSActiviy(this.eventName, '<span style="color: blue;">RECEIVED DATA:</span><pre>' + JSON.stringify(JSON.parse(data), null, '  ') + '</pre>');
+                    wsNtfyChannel.addListener('notify', function (data) {
+                        showWSActiviy(this.eventName, '<span style="color: blue;">RECEIVED DATA:</span><pre>' + JSON.stringify(data, null, '  ') + '</pre>');
                     });
 
                     wsNtfyChannel.open(function (err) {
