@@ -10,6 +10,8 @@
             var ctnApiClient;
             var device = {};
             var lastMsgId;
+            var lastContToken;
+            var lastEphemMsgId;
 
             function resetDevice() {
                 device = {};
@@ -64,32 +66,60 @@
                 fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
             }
 
-            function logMessage(message, encoding, encrypt, storage) {
+            function logMessage(message, sendInChunks, isFinal, continuationToken, encoding, encrypt, storage, async) {
+                if (sendInChunks) {
+                    message = {
+                        data: message,
+                        isFinal: isFinal,
+                        continuationToken: continuationToken
+                    }
+                }
+
                 ctnApiClient.logMessage(message, {
                     encoding: encoding,
                     encrypt: encrypt,
-                    storage: storage
+                    storage: storage,
+                    async: async
                 }, processMessageResult);
             }
 
-            function sendMessage(targetDeviceId, isProdUniqueId, message, readConfirmation, encoding, encrypt, storage) {
-                ctnApiClient.sendMessage({
+            function sendMessage(message, sendInChunks, isFinal, continuationToken, targetDeviceId, isProdUniqueId, encoding, encrypt, storage, readConfirmation, async) {
+                if (sendInChunks) {
+                    message = {
+                        data: message,
+                        isFinal: isFinal,
+                        continuationToken: continuationToken
+                    }
+                }
+
+                ctnApiClient.sendMessage(message, {
                     id: targetDeviceId,
                     isProdUniqueId: isProdUniqueId
-                }, message, {
+                }, {
                     readConfirmation: readConfirmation,
                     encoding: encoding,
                     encrypt: encrypt,
-                    storage: storage
+                    storage: storage,
+                    async: async
                 }, processMessageResult);
             }
 
-            function readMessage(messageId, encoding) {
-                ctnApiClient.readMessage(messageId, encoding, processResult);
+            function readMessage(messageId, encoding, continuationToken, dataChunkSize, async) {
+                var options = {
+                    encoding: encoding,
+                    continuationToken: continuationToken,
+                    dataChunkSize: dataChunkSize,
+                    async: async
+                };
+                ctnApiClient.readMessage(messageId, options, processMessageResult);
             }
 
             function retrieveMessageContainer(messageId) {
                 ctnApiClient.retrieveMessageContainer(messageId, processResult);
+            }
+
+            function retrieveMessageProgress(ephemMessageId) {
+                ctnApiClient.retrieveMessageProgress(ephemMessageId, processMessageResult);
             }
 
             function listMessages(action, direction, fromDeviceIds, toDeviceIds, fromDeviceProdUniqueIds, toDeviceProdUniqueIds, readState, startDate, endDate) {
@@ -238,12 +268,33 @@
                 ctnApiClient.listAssetHolders(assetId, limit, skip, processResult);
             }
 
-            function processMessageResult(err, data) {
-                if (!err && typeof data === 'object' && data !== null && typeof data.messageId === 'string') {
-                    lastMsgId = data.messageId;
+            function processMessageResult(err, data, parseResultOnly) {
+                if (!err && typeof data === 'object' && data !== null) {
+                    if (typeof data.messageId === 'string') {
+                        lastMsgId = data.messageId;
+                    }
+                    else if (typeof data.continuationToken === 'string') {
+                        lastContToken = data.continuationToken;
+                    }
+                    else if (typeof data.provisionalMessageId === 'string') {
+                        lastEphemMsgId = data.provisionalMessageId;
+                    }
+                    else if (typeof data.cachedMessageId === 'string') {
+                        lastEphemMsgId = data.cachedMessageId;
+                    }
+                    if (typeof data.result === 'object' && data.result !== null) {
+                        if (typeof data.result.continuationToken === 'string') {
+                            lastContToken = data.result.continuationToken;
+                        }
+                        else if (typeof data.result.messageId === 'string') {
+                            lastMsgId = data.result.messageId;
+                        }
+                    }
                 }
 
-                processResult(err, data);
+                if (!parseResultOnly) {
+                    processResult(err, data);
+                }
             }
 
             function processResult(err, data) {
@@ -404,9 +455,21 @@
                 document.getElementById('itxDeviceId').value = device.deviceId;
             }
 
-            function fillWithLastMsgId() {
+            function fillWithLastMsgId(fieldId) {
                 if (lastMsgId) {
-                    document.getElementById('itxMsgId').value = lastMsgId;
+                    document.getElementById(fieldId).value = lastMsgId;
+                }
+            }
+
+            function fillWithLastContToken(fieldId) {
+                if (lastContToken) {
+                    document.getElementById(fieldId).value = lastContToken;
+                }
+            }
+
+            function fillWithLastEphemMsgId(fieldId) {
+                if (lastEphemMsgId) {
+                    document.getElementById(fieldId).value = lastEphemMsgId;
                 }
             }
 
@@ -796,6 +859,10 @@
                     });
 
                     wsNtfyChannel.addListener('notify', function (data) {
+                        if (this.eventName === 'final-msg-progress') {
+                            processMessageResult(null, data, true);
+                        }
+
                         showWSActiviy(this.eventName, '<span style="color: blue;">RECEIVED DATA:</span><pre>' + JSON.stringify(data, null, '  ') + '</pre>');
                     });
 
@@ -870,7 +937,7 @@
             <script language="JavaScript">resetDeviceIdField()</script>
         </div>
         <div style="margin-top:1em">
-            <a href="javascript:selectPanel('divMessage')">Messages</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAsset')">Assets</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divPermNotif')">Permission & Notification</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel(null)">None</a>
+            <a href="javascript:selectPanel('divMessage')">Messages</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAsset')">Assets</a>&nbsp;<a href="javascript:selectPanel('divPermNotif')">Permission & Notification</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel(null)">None</a>
         </div>
         <div id="divMessage" style="margin-top:1em; display:none">
             <table>
@@ -880,7 +947,14 @@
                     </td>
                     <td>
                         <textarea id="itxMessage" rows="5" cols="80"></textarea>
-                        <br/><label for="selMsgEncoding">encoding: </label><select id="selMsgEncoding">
+                        <div style="margin-top:0; margin-bottom:0.5em">
+                            <label for="cbxMsgChunks">Break in chunks: </label><input id="cbxMsgChunks" type="checkbox" onclick="document.getElementById('divMsgChunks').style.display=this.checked?'block':'none'" />
+                            <div id="divMsgChunks" style="display:none; margin-left:2em; margin-bottom:0">
+                                <label for="cbxIsFinal">Is final: </label><input id="cbxIsFinal" type="checkbox" checked />
+                                <br/><label for="itxContToken">Continuation token: </label><input id="itxContToken" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastContToken('itxContToken')">Fill with last cont. token</a>
+                            </div>
+                        </div>
+                        <label for="selMsgEncoding">encoding: </label><select id="selMsgEncoding">
                             <option value="utf8" selected>UTF-8</option>
                             <option value="base64">Base-64</option>
                             <option value="hex">Hex</option>
@@ -891,7 +965,10 @@
                             <option value="embedded">Embedded</option>
                             <option value="external">External</option>
                         </select>
-                        <br/><button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMessage','message')){logMessage(getFieldValue('itxMessage'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'))}else{return false}">Log Message</button>
+                        <div style="margin-top:0.5em">
+                            <label for="cbxMsgAsync">Asynchronous processing: </label><input id="cbxMsgAsync" type="checkbox" />
+                        </div>
+                        <button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMessage','message')){logMessage(getFieldValue('itxMessage'), isFieldChecked('cbxMsgChunks'), isFieldChecked('cbxIsFinal'), checkUndefined(getFieldValue('itxContToken',true)), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'), isFieldChecked('cbxMsgAsync'))}else{return false}">Log Message</button>
                         <div style="margin-top:1em">
                             <table>
                                 <tr>
@@ -902,7 +979,7 @@
                                         <input id="itxTrgtDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
                                         <br/><label for="cbxProdUniqId">product unique ID: </label><input id="cbxProdUniqId" type="checkbox"/>
                                         <br/><label for="cbxReadConfirm" style="margin-top:13px">read confirmation: </label><input id="cbxReadConfirm" type="checkbox" style="margin-top:13px" />
-                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMessage','message') && checkDeviceIdField('itxTrgtDeviceId','target')){sendMessage(getFieldValue('itxTrgtDeviceId'), isFieldChecked('cbxProdUniqId'), getFieldValue('itxMessage'), isFieldChecked('cbxReadConfirm'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'))}else{return false}">Send Message</button>
+                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMessage','message') && checkDeviceIdField('itxTrgtDeviceId','target')){sendMessage(getFieldValue('itxMessage'), isFieldChecked('cbxMsgChunks'), isFieldChecked('cbxIsFinal'), checkUndefined(getFieldValue('itxContToken',true)), getFieldValue('itxTrgtDeviceId'), isFieldChecked('cbxProdUniqId'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'), isFieldChecked('cbxReadConfirm'), isFieldChecked('cbxMsgAsync'))}else{return false}">Send Message</button>
                                     </td>
                                 </tr>
                             </table>
@@ -914,15 +991,33 @@
                         <label for="itxMsgId">Message ID: </label>
                     </td>
                     <td style="padding-top:1em">
-                        <input id="itxMsgId" style="margin-bottom:0.5em" type="text" maxlength="64" size="80"/>
-                        <div width="100%" align="right" style="margin-right:30px;margin-bottom:-1em"><a href="javascript:fillWithLastMsgId()">Fill with last message ID</a></div>
-                        <button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){retrieveMessageContainer(getFieldValue('itxMsgId'))}else{return false}">Retrieve Message Container</button>
+                        <input id="itxMsgId" style="margin-bottom:0.5em" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastMsgId('itxMsgId')">Fill with last message ID</a>
+                        <br/><button id="btnRetrieveMessageContainer" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){retrieveMessageContainer(getFieldValue('itxMsgId'))}else{return false}">Retrieve Message Container</button>
                         <br/><label for="selRdMsgEncoding">encoding: </label><select id="selRdMsgEncoding">
                             <option value="utf8" selected>UTF-8</option>
                             <option value="base64">Base-64</option>
                             <option value="hex">Hex</option>
                         </select>
-                        <br/><button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){readMessage(getFieldValue('itxMsgId'), getFieldValue('selRdMsgEncoding'))}else{return false}">Read Message</button>
+                        <br/><label for="itxReadContToken">Continuation token: </label><input id="itxReadContToken" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastContToken('itxReadContToken')">Fill with last cont. token</a>
+                        <div style="margin-top:0.5em">
+                            <label for="cbxReadMsgChunks">Read in chunks: </label><input id="cbxReadMsgChunks" type="checkbox" onclick="document.getElementById('divReadMsgChunks').style.display=this.checked?'block':'none'" />
+                            <div id="divReadMsgChunks" style="display:none; margin-left:2em; margin-bottom:0" onclick="if(!this.checked){document.getElementById('itxDataChunkSize').value=''}">
+                                <label for="itxDataChunkSize">Chunk size: </label><input id="itxDataChunkSize" type="text" maxlength="11" size="11"/>
+                            </div>
+                        </div>
+                        <div style="margin-top:0.5em">
+                            <label for="cbxReadMsgAsync">Asynchronous processing: </label><input id="cbxReadMsgAsync" type="checkbox" />
+                        </div>
+                        <button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID') && (!isFieldChecked('cbxReadMsgChunks') || requireField('itxDataChunkSize','chunk size',false,true)) && (checkUndefined(getFieldValue('itxDataChunkSize',true))===undefined || checkNumberField('itxDataChunkSize'))){readMessage(getFieldValue('itxMsgId'), getFieldValue('selRdMsgEncoding'), checkUndefined(getFieldValue('itxReadContToken',true)), checkUndefined(getFieldValue('itxDataChunkSize',true)), isFieldChecked('cbxReadMsgAsync'))}else{return false}">Read Message</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-top:1.25em">
+                        <label for="itxEphemMsgId">Ephemeral message ID: </label>
+                    </td>
+                    <td style="padding-top:1em">
+                        <input id="itxEphemMsgId" style="margin-bottom:0.5em" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastEphemMsgId('itxEphemMsgId')">Fill with last ephem. message ID</a>
+                        <br/><button id="btnRetrieveMessageProgress" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireField('itxEphemMsgId','ephemeral message ID')){retrieveMessageProgress(getFieldValue('itxEphemMsgId'))}else{return false}">Retrieve Message Progress</button>
                     </td>
                 </tr>
 
