@@ -858,6 +858,11 @@
                         delete wsNtfyChannels[eventName];
                     });
 
+                    wsNtfyChannel.addListener('open', function () {
+                        // Notification channel successfully open and ready to send notifications
+                        showWSActiviy(this.eventName, 'NOTIFICATION CHANNEL OPEN');
+                    });
+
                     wsNtfyChannel.addListener('notify', function (data) {
                         if (this.eventName === 'final-msg-progress') {
                             processMessageResult(null, data, true);
