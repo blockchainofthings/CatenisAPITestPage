@@ -2,15 +2,8 @@
 
 This is an HTML page that can be used to exercise and test every aspect of the Catenis Enterprise REST API.
 
-This current release is compliant with version 0.8 of the Catenis API.
-
-## Preparations
-
-This page requires version 4.0.0 of the Catenis API Javascript client library.
-
-Download the library from its [repository](https://github.com/blockchainofthings/CatenisAPIClientJS/releases/tag/v4.0.0)
- and place its files (*CatenisAPIClientJS.min.js* and optionally *CatenisAPIClientJS.min.map*) in a subdirectory named
- `lib`. 
+This current release uses version 4.0.2 of the Catenis API JavaScript client library and is compliant with version 0.8
+ of the Catenis Enterprise API.
 
 ## Usage
 
