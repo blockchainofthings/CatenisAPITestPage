@@ -2,7 +2,7 @@
 
 This is an HTML page that can be used to exercise and test every aspect of the Catenis Enterprise REST API.
 
-This current release uses version 4.0.2 of the Catenis API JavaScript client library and is compliant with version 0.8
+This current release uses version 5.0.0 of the Catenis API JavaScript client library and is compliant with version 0.9
  of the Catenis Enterprise API.
 
 ## Usage
@@ -17,4 +17,4 @@ To call the Catenis API methods, click on the appropriate category (*Messages*, 
 
 This project is for Blockchain of Things' internal use only.
 
-Copyright © 2019, Blockchain of Things Inc.
+Copyright © 2020, Blockchain of Things Inc.

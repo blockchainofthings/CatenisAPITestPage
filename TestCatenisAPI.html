@@ -76,7 +76,7 @@
                 fillNotifyEventNames(['selOpenNotifyEventName', 'selCloseNotifyEventName']);
             }
 
-            function logMessage(message, sendInChunks, isFinal, continuationToken, encoding, encrypt, storage, async) {
+            function logMessage(message, sendInChunks, isFinal, continuationToken, encoding, encrypt, offChain, storage, async) {
                 if (sendInChunks) {
                     message = {
                         data: message,
@@ -88,12 +88,13 @@
                 ctnApiClient.logMessage(message, {
                     encoding: encoding,
                     encrypt: encrypt,
+                    offChain: offChain,
                     storage: storage,
                     async: async
                 }, processMessageResult);
             }
 
-            function sendMessage(message, sendInChunks, isFinal, continuationToken, targetDeviceId, isProdUniqueId, encoding, encrypt, storage, readConfirmation, async) {
+            function sendMessage(message, sendInChunks, isFinal, continuationToken, targetDeviceId, isProdUniqueId, encoding, encrypt, offChain, storage, readConfirmation, async) {
                 if (sendInChunks) {
                     message = {
                         data: message,
@@ -109,6 +110,7 @@
                     readConfirmation: readConfirmation,
                     encoding: encoding,
                     encrypt: encrypt,
+                    offChain: offChain,
                     storage: storage,
                     async: async
                 }, processMessageResult);
@@ -975,6 +977,7 @@
                             <option value="hex">Hex</option>
                         </select>
                         <br/><label for="cbxMsgEncrypt">encrypt: </label><input id="cbxMsgEncrypt" type="checkbox" checked />
+                        <br/><label for="cbxOffChainMsg">off-chain: </label><input id="cbxOffChainMsg" type="checkbox" checked />
                         <br/><label for="selMsgStorage">storage: </label><select id="selMsgStorage">
                             <option value="auto" selected>Auto</option>
                             <option value="embedded">Embedded</option>
@@ -983,7 +986,7 @@
                         <div style="margin-top:0.5em">
                             <label for="cbxMsgAsync">Asynchronous processing: </label><input id="cbxMsgAsync" type="checkbox" />
                         </div>
-                        <button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMessage','message')){logMessage(getFieldValue('itxMessage'), isFieldChecked('cbxMsgChunks'), isFieldChecked('cbxIsFinal'), checkUndefined(getFieldValue('itxContToken',true)), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'), isFieldChecked('cbxMsgAsync'))}else{return false}">Log Message</button>
+                        <button id="btnLogMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMessage','message')){logMessage(getFieldValue('itxMessage'), isFieldChecked('cbxMsgChunks'), isFieldChecked('cbxIsFinal'), checkUndefined(getFieldValue('itxContToken',true)), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), isFieldChecked('cbxOffChainMsg'), getFieldValue('selMsgStorage'), isFieldChecked('cbxMsgAsync'))}else{return false}">Log Message</button>
                         <div style="margin-top:1em">
                             <table>
                                 <tr>
@@ -994,7 +997,7 @@
                                         <input id="itxTrgtDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
                                         <br/><label for="cbxProdUniqId">product unique ID: </label><input id="cbxProdUniqId" type="checkbox"/>
                                         <br/><label for="cbxReadConfirm" style="margin-top:13px">read confirmation: </label><input id="cbxReadConfirm" type="checkbox" style="margin-top:13px" />
-                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMessage','message') && checkDeviceIdField('itxTrgtDeviceId','target')){sendMessage(getFieldValue('itxMessage'), isFieldChecked('cbxMsgChunks'), isFieldChecked('cbxIsFinal'), checkUndefined(getFieldValue('itxContToken',true)), getFieldValue('itxTrgtDeviceId'), isFieldChecked('cbxProdUniqId'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), getFieldValue('selMsgStorage'), isFieldChecked('cbxReadConfirm'), isFieldChecked('cbxMsgAsync'))}else{return false}">Send Message</button>
+                                        <br/><button id="btnSendMessage" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMessage','message') && checkDeviceIdField('itxTrgtDeviceId','target')){sendMessage(getFieldValue('itxMessage'), isFieldChecked('cbxMsgChunks'), isFieldChecked('cbxIsFinal'), checkUndefined(getFieldValue('itxContToken',true)), getFieldValue('itxTrgtDeviceId'), isFieldChecked('cbxProdUniqId'), getFieldValue('selMsgEncoding'), isFieldChecked('cbxMsgEncrypt'), isFieldChecked('cbxOffChainMsg'), getFieldValue('selMsgStorage'), isFieldChecked('cbxReadConfirm'), isFieldChecked('cbxMsgAsync'))}else{return false}">Send Message</button>
                                     </td>
                                 </tr>
                             </table>
