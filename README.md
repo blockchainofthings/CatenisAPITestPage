@@ -2,7 +2,7 @@
 
 This is an HTML page that can be used to exercise and test every aspect of the Catenis Enterprise REST API.
 
-This current release uses version 5.0.0 of the Catenis API JavaScript client library and is compliant with version 0.9
+This current release uses version 5.0.1 of the Catenis API JavaScript client library and is compliant with version 0.9
  of the Catenis Enterprise API.
 
 ## Usage
