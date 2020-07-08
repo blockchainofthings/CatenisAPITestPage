@@ -130,6 +130,10 @@
                 ctnApiClient.retrieveMessageContainer(messageId, processResult);
             }
 
+            function retrieveMessageOrigin(messageId, msgToSign) {
+                ctnApiClient.retrieveMessageOrigin(messageId, msgToSign, processResult);
+            }
+
             function retrieveMessageProgress(ephemMessageId) {
                 ctnApiClient.retrieveMessageProgress(ephemMessageId, processMessageResult);
             }
@@ -1027,6 +1031,10 @@
                             <label for="cbxReadMsgAsync">Asynchronous processing: </label><input id="cbxReadMsgAsync" type="checkbox" />
                         </div>
                         <button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID') && (!isFieldChecked('cbxReadMsgChunks') || requireField('itxDataChunkSize','chunk size',false,true)) && (checkUndefined(getFieldValue('itxDataChunkSize',true))===undefined || checkNumberField('itxDataChunkSize'))){readMessage(getFieldValue('itxMsgId'), getFieldValue('selRdMsgEncoding'), checkUndefined(getFieldValue('itxReadContToken',true)), checkUndefined(getFieldValue('itxDataChunkSize',true)), isFieldChecked('cbxReadMsgAsync'))}else{return false}">Read Message</button>
+                        <div style="margin-top:0.3em">
+                            <label for="itxMsgToSign">Message to sign: </label><input id="itxMsgToSign" type="text" size="80"/>
+                            <br/><button id="btnRetrieveMessageOrigin" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){retrieveMessageOrigin(getFieldValue('itxMsgId'), checkUndefined(getFieldValue('itxMsgToSign',true)))}else{return false}">Retrieve Message Origin</button>
+                        </div>
                     </td>
                 </tr>
                 <tr>
