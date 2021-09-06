@@ -17,4 +17,4 @@ To call the Catenis API methods, click on the appropriate category (*Messages*, 
 
 This project is for Blockchain of Things' internal use only.
 
-Copyright © 2020, Blockchain of Things Inc.
+Copyright © 2017-2021, Blockchain of Things Inc.
