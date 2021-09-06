@@ -425,22 +425,6 @@
                 }
             }
 
-            function checkListMessagesDateFields() {
-                if (checkDateField('idtStartDate')) {
-                    return checkDateField('idtEndDate');
-                }
-
-                return false;
-            }
-
-            function checkAssetIssuanceHistoryDateFields() {
-                if (checkDateField('idtStartDate2')) {
-                    return checkDateField('idtEndDate2');
-                }
-
-                return false;
-            }
-
             function checkDateRangeFields(idx) {
                 idx = idx || '';
                 if (checkDateField('idtStartDate' + idx)) {
@@ -1260,7 +1244,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkListMessagesDateFields() && (checkUndefined(getFieldValue('itxMsgLimit',true)) === undefined || checkNumberField('itxMsgLimit')) && (checkUndefined(getFieldValue('itxMsgSkip',true)) === undefined || checkNumberField('itxMsgSkip'))){listMessages(checkUndefined(getFieldValue('selMsgAction')),checkUndefined(getFieldValue('selMsgDirection')),checkUndefined(getFieldValue('itxFromDeviceIds',true)),checkUndefined(getFieldValue('itxToDeviceIds',true)),checkUndefined(getFieldValue('itxFromDevProdUniqueIds',true)),checkUndefined(getFieldValue('itxToDevProdUniqueIds',true)),checkUndefined(getFieldValue('selReadState')),formatDate(getFieldValue('idtStartDate')),formatDate(getFieldValue('idtEndDate')),parseNumber(checkUndefined(getFieldValue('itxMsgLimit'))),parseNumber(checkUndefined(getFieldValue('itxMsgSkip'))))}else{return false}">List Messages</button>
+                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields() && (checkUndefined(getFieldValue('itxMsgLimit',true)) === undefined || checkNumberField('itxMsgLimit')) && (checkUndefined(getFieldValue('itxMsgSkip',true)) === undefined || checkNumberField('itxMsgSkip'))){listMessages(checkUndefined(getFieldValue('selMsgAction')),checkUndefined(getFieldValue('selMsgDirection')),checkUndefined(getFieldValue('itxFromDeviceIds',true)),checkUndefined(getFieldValue('itxToDeviceIds',true)),checkUndefined(getFieldValue('itxFromDevProdUniqueIds',true)),checkUndefined(getFieldValue('itxToDevProdUniqueIds',true)),checkUndefined(getFieldValue('selReadState')),formatDate(getFieldValue('idtStartDate')),formatDate(getFieldValue('idtEndDate')),parseNumber(checkUndefined(getFieldValue('itxMsgLimit'))),parseNumber(checkUndefined(getFieldValue('itxMsgSkip'))))}else{return false}">List Messages</button>
                     </td>
                 </tr>
            </table>
@@ -1821,7 +1805,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnAssetIssuance" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId5','asset ID',true,true) && checkAssetIssuanceHistoryDateFields()){retrieveAssetIssuanceHistory(getFieldValue('itxAssetId5',true),formatDate(getFieldValue('idtStartDate2')),formatDate(getFieldValue('idtEndDate2')),parseNumber(checkUndefined(getFieldValue('itxLimit4',true))),parseNumber(checkUndefined(getFieldValue('itxSkip4',true))))}else{return false}">Retrieve issuance history</button>
+                        <button id="btnAssetIssuance" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId5','asset ID',true,true) && checkDateRangeFields(2)){retrieveAssetIssuanceHistory(getFieldValue('itxAssetId5',true),formatDate(getFieldValue('idtStartDate2')),formatDate(getFieldValue('idtEndDate2')),parseNumber(checkUndefined(getFieldValue('itxLimit4',true))),parseNumber(checkUndefined(getFieldValue('itxSkip4',true))))}else{return false}">Retrieve issuance history</button>
                     </td>
                 </tr>
 
