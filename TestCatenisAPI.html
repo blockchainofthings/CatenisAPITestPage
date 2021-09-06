@@ -284,6 +284,61 @@
                 ctnApiClient.listAssetHolders(assetId, limit, skip, processResult);
             }
 
+            function exportAsset(assetId, foreignBlockchain, tokenName, tokenSymbol, consumptionProfile, estimateOnly) {
+                ctnApiClient.exportAsset(assetId, foreignBlockchain, {
+                    name: tokenName,
+                    symbol: tokenSymbol
+                }, {
+                    consumptionProfile,
+                    estimateOnly
+                }, processResult);
+            }
+
+            function migrateAsset(assetId, foreignBlockchain, migrationId, direction, amount, destAddress, consumptionProfile, estimateOnly) {
+                var migration = migrationId ? migrationId : {
+                    direction,
+                    amount,
+                    destAddress
+                };
+
+                ctnApiClient.migrateAsset(assetId, foreignBlockchain, migration, {
+                    consumptionProfile,
+                    estimateOnly
+                }, processResult);
+            }
+
+            function assetExportOutcome(assetId, foreignBlockchain) {
+                ctnApiClient.assetExportOutcome(assetId, foreignBlockchain, processMessageResult);
+            }
+
+            function assetMigrationOutcome(migrationId) {
+                ctnApiClient.assetMigrationOutcome(migrationId, processMessageResult);
+            }
+
+            function listExportedAssets(assetId, foreignBlockchain, tokenSymbol, status, negateStatus, startDate, endDate, limit, skip) {
+                ctnApiClient.listExportedAssets({
+                    assetId,
+                    foreignBlockchain,
+                    tokenSymbol,
+                    status,
+                    negateStatus,
+                    startDate,
+                    endDate
+                }, limit, skip, processResult);
+            }
+
+            function listAssetMigrations(assetId, foreignBlockchain, direction, status, negateStatus, startDate, endDate, limit, skip) {
+                ctnApiClient.listAssetMigrations({
+                    assetId,
+                    foreignBlockchain,
+                    direction,
+                    status,
+                    negateStatus,
+                    startDate,
+                    endDate
+                }, limit, skip, processResult);
+            }
+
             function processMessageResult(err, data, parseResultOnly) {
                 if (!err && typeof data === 'object' && data !== null) {
                     if (typeof data.messageId === 'string') {
@@ -336,6 +391,14 @@
                 return trim ? value.trim() : value;
             }
 
+            function checkFieldValue(ctrlId, value) {
+                return document.getElementById(ctrlId).value === value;
+            }
+
+            function getSelectList(ctrlId) {
+                return Array.prototype.map.call(document.getElementById(ctrlId).selectedOptions,function(opt){return opt.value}).join(',');
+            }
+
             function parseNumber(val) {
                 return val ? parseInt(val) : val;
             }
@@ -373,6 +436,15 @@
             function checkAssetIssuanceHistoryDateFields() {
                 if (checkDateField('idtStartDate2')) {
                     return checkDateField('idtEndDate2');
+                }
+
+                return false;
+            }
+
+            function checkDateRangeFields(idx) {
+                idx = idx || '';
+                if (checkDateField('idtStartDate' + idx)) {
+                    return checkDateField('idtEndDate' + idx);
                 }
 
                 return false;
@@ -491,6 +563,10 @@
 
             function checkUndefined(value) {
                 return value === undefined || value === null || (typeof value === 'string' && value.length === 0) ? undefined : value;
+            }
+
+            function optValue(condition, value) {
+                return condition ? value : undefined;
             }
 
             function showArgs(label) {
@@ -911,11 +987,18 @@
                 var panelIds = [
                     'divMessage',
                     'divPermNotif',
-                    'divAsset'
+                    'divAsset',
+                    'divAssetExport'
                 ];
 
                 panelIds.forEach(function (id) {
                     document.getElementById(id).style.display = id === selectedPanelId ? 'block' : 'none';
+                });
+            }
+
+            function displayTableRows(ids, show) {
+                ids.forEach(function (id) {
+                    document.getElementById(id).style.display = show ? 'table-row' : 'none';
                 });
             }
 
@@ -930,19 +1013,33 @@
                     'trDecimalPlaces'
                 ];
 
-                function displayElements(ids, show) {
-                    ids.forEach(function (id) {
-                        document.getElementById(id).style.display = show ? 'table-row' : 'none';
-                    });
-                }
-
                 if (reissue) {
-                    displayElements(reissueRowIds, true);
-                    displayElements(issueRowIds, false);
+                    displayTableRows(reissueRowIds, true);
+                    displayTableRows(issueRowIds, false);
                 }
                 else {
-                    displayElements(reissueRowIds, false);
-                    displayElements(issueRowIds, true);
+                    displayTableRows(reissueRowIds, false);
+                    displayTableRows(issueRowIds, true);
+                }
+            }
+
+            function setAssetMigrationFields(reprocess) {
+                var reprocessRowIds = [
+                    'trMigrationId'
+                ];
+                var migrationRowIds = [
+                    'trMgrDirection',
+                    'trMgrAmount',
+                    'trMgrDestAddress'
+                ];
+
+                if (reprocess) {
+                    displayTableRows(reprocessRowIds, true);
+                    displayTableRows(migrationRowIds, false);
+                }
+                else {
+                    displayTableRows(reprocessRowIds, false);
+                    displayTableRows(migrationRowIds, true);
                 }
             }
         </script>
@@ -958,7 +1055,11 @@
             <script language="JavaScript">resetDeviceIdField()</script>
         </div>
         <div style="margin-top:1em">
-            <a href="javascript:selectPanel('divMessage')">Messages</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAsset')">Assets</a>&nbsp;<a href="javascript:selectPanel('divPermNotif')">Permission & Notification</a>&nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel(null)">None</a>
+            <a href="javascript:selectPanel('divMessage')">Messages</a>
+            &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAsset')">Assets</a>
+            &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAssetExport')">Asset Export</a>
+            &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divPermNotif')">Permission & Notification</a>
+            &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel(null)">None</a>
         </div>
         <div id="divMessage" style="margin-top:1em; display:none">
             <table>
@@ -1757,6 +1858,419 @@
                     <td></td>
                     <td>
                         <button id="btnAssetHolders" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId6','asset ID',true,true) && (checkUndefined(getFieldValue('itxLimit3',true)) === undefined || checkNumberField('itxLimit3')) && (checkUndefined(getFieldValue('itxSkip3',true)) === undefined || checkNumberField('itxSkip3'))){listAssetHolders(getFieldValue('itxAssetId6',true),parseNumber(checkUndefined(getFieldValue('itxLimit3',true))),parseNumber(checkUndefined(getFieldValue('itxSkip3',true))))}else{return false}">List holders</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div id="divAssetExport" style="margin-top:1em; display:none">
+            <table>
+                <tr>
+                    <td colspan="2">
+                        Export asset:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId7">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId7" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selForeignBc">foreign blockchain: </label>
+                    </td>
+                    <td>
+                        <select id="selForeignBc">
+                            <option value="ethereum" selected>Ethereum</option>
+                            <option value="binance">Binance Smart Chain</option>
+                            <option value="polygon">Polygon PoS Chain</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxTokenName">token name: </label>
+                    </td>
+                    <td>
+                        <input id="itxTokenName" type="text" maxlength="80" size="80"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxTokenSymbol">token symbol: </label>
+                    </td>
+                    <td>
+                        <input id="itxTokenSymbol" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selConsumptionPrf">Consumption profile: </label>
+                    </td>
+                    <td>
+                        <select id="selConsumptionPrf">
+                            <option value="" selected></option>
+                            <option value="fastest">Fastest</option>
+                            <option value="fast">Fast</option>
+                            <option value="average">Average</option>
+                            <option value="slow">Slow</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxEstimateOnly">estimate only: </label>
+                    </td>
+                    <td>
+                        <input id="cbxEstimateOnly" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnExportAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId7','asset ID',true,true) && requireField('itxTokenName','token name',false,true) && requireField('itxTokenSymbol','token symbol',false,true)){exportAsset(getFieldValue('itxAssetId7',true),getFieldValue('selForeignBc'),getFieldValue('itxTokenName'),getFieldValue('itxTokenSymbol'),checkUndefined(getFieldValue('selConsumptionPrf')),isFieldChecked('cbxEstimateOnly'))}else{return false}">Export Asset</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Migrate asset:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId8">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId8" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selForeignBc2">foreign blockchain: </label>
+                    </td>
+                    <td>
+                        <select id="selForeignBc2">
+                            <option value="ethereum" selected>Ethereum</option>
+                            <option value="binance">Binance Smart Chain</option>
+                            <option value="polygon">Polygon PoS Chain</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxReprMigration">Reprocess a (failed) migration: </label>
+                    </td>
+                    <td>
+                        <input id="cbxReprMigration" type="checkbox" onclick="setAssetMigrationFields(this.checked)"/>
+                    </td>
+                </tr>
+                <tr id="trMigrationId" style="display:none">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxMigrationId">migration ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxMigrationId" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr id="trMgrDirection">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selMgrDirection">direction: </label>
+                    </td>
+                    <td>
+                        <select id="selMgrDirection">
+                            <option value="outward" selected>Outward</option>
+                            <option value="inward">Inward</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="trMgrAmount">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxMgrAmount">amount: </label>
+                    </td>
+                    <td>
+                        <input id="itxMgrAmount" type="text" maxlength="17" size="17"/>
+                    </td>
+                </tr>
+                <tr id="trMgrDestAddress">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxMgrDestAddress">destination address: </label>
+                    </td>
+                    <td>
+                        <input id="itxMgrDestAddress" type="text" maxlength="42" size="42"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selConsumptionPrf2">Consumption profile: </label>
+                    </td>
+                    <td>
+                        <select id="selConsumptionPrf2">
+                            <option value="" selected></option>
+                            <option value="fastest">Fastest</option>
+                            <option value="fast">Fast</option>
+                            <option value="average">Average</option>
+                            <option value="slow">Slow</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxEstimateOnly2">estimate only: </label>
+                    </td>
+                    <td>
+                        <input id="cbxEstimateOnly2" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnMigrateAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId8','asset ID',true,true) && ((isFieldChecked('cbxReprMigration') && (requireField('itxMigrationId','migration ID',false,true))) || (!isFieldChecked('cbxReprMigration') && (requireField('itxMgrAmount','amount',true,true) && checkAmountField('itxMgrAmount')) && (!checkFieldValue('selMgrDirection','outward') || requireField('itxMgrDestAddress','destination address',false,true))))){migrateAsset(getFieldValue('itxAssetId8',true),getFieldValue('selForeignBc2'),optValue(isFieldChecked('cbxReprMigration'),getFieldValue('itxMigrationId')),getFieldValue('selMgrDirection'),parseAmount(getFieldValue('itxMgrAmount')),optValue(checkFieldValue('selMgrDirection','outward'),checkUndefined(getFieldValue('itxMgrDestAddress'))),checkUndefined(getFieldValue('selConsumptionPrf2')),isFieldChecked('cbxEstimateOnly2'))}else{return false}">Migrate Asset</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Asset export outcome:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId9">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId9" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selForeignBc3">foreign blockchain: </label>
+                    </td>
+                    <td>
+                        <select id="selForeignBc3">
+                            <option value="ethereum" selected>Ethereum</option>
+                            <option value="binance">Binance Smart Chain</option>
+                            <option value="polygon">Polygon PoS Chain</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnAssetExportOutcome" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId9','asset ID',true,true)){assetExportOutcome(getFieldValue('itxAssetId9',true),getFieldValue('selForeignBc3'))}else{return false}">Get Outcome</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Asset migration outcome:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxMigrationId2">migration ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxMigrationId2" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnAssetMigrationOutcome" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMigrationId2','migration ID',false,true)){assetMigrationOutcome(getFieldValue('itxMigrationId2',true))}else{return false}">Get Outcome</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        List exported assets:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId10">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId10" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selForeignBc4">foreign blockchain: </label>
+                    </td>
+                    <td>
+                        <select id="selForeignBc4">
+                            <option value="" selected></option>
+                            <option value="ethereum">Ethereum</option>
+                            <option value="binance">Binance Smart Chain</option>
+                            <option value="polygon">Polygon PoS Chain</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxTokenSymbol2">token symbol: </label>
+                    </td>
+                    <td>
+                        <input id="itxTokenSymbol2" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selAssetExpStatus">status: </label>
+                    </td>
+                    <td>
+                        <select id="selAssetExpStatus" multiple size="3">
+                            <option value="pending">Pending</option>
+                            <option value="success">Success</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxNotAssetExpStatus">negate status: </label>
+                    </td>
+                    <td>
+                        <input id="cbxNotAssetExpStatus" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="idtStartDate3">start date: </label>
+                    </td>
+                    <td>
+                        <input id="idtStartDate3" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="idtEndDate3">end date: </label>
+                    </td>
+                    <td>
+                        <input id="idtEndDate3" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetExpLimit">max. returned asset exports: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetExpLimit" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetExpSkip">asset exports to skip: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetExpSkip" type="text" maxlength="10" size="10"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnListExpAsset" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields(3) && (checkUndefined(getFieldValue('itxAssetExpLimit',true)) === undefined || checkNumberField('itxAssetExpLimit')) && (checkUndefined(getFieldValue('itxAssetExpSkip',true)) === undefined || checkNumberField('itxAssetExpSkip'))){listExportedAssets(checkUndefined(getFieldValue('itxAssetId10',true)),checkUndefined(getFieldValue('selForeignBc4',true)),checkUndefined(getFieldValue('itxTokenSymbol2',true)),checkUndefined(getSelectList('selAssetExpStatus')),isFieldChecked('cbxNotAssetExpStatus'),formatDate(getFieldValue('idtStartDate3')),formatDate(getFieldValue('idtEndDate3')),parseNumber(checkUndefined(getFieldValue('itxAssetExpLimit'))),parseNumber(checkUndefined(getFieldValue('itxAssetExpSkip'))))}else{return false}">List Asset Exports</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        List asset migrations:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetId11">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetId11" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selForeignBc5">foreign blockchain: </label>
+                    </td>
+                    <td>
+                        <select id="selForeignBc5">
+                            <option value="" selected></option>
+                            <option value="ethereum">Ethereum</option>
+                            <option value="binance">Binance Smart Chain</option>
+                            <option value="polygon">Polygon PoS Chain</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selMgrDirection2">direction: </label>
+                    </td>
+                    <td>
+                        <select id="selMgrDirection2">
+                            <option value="" selected></option>
+                            <option value="outward">Outward</option>
+                            <option value="inward">Inward</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selAssetExpStatus2">status: </label>
+                    </td>
+                    <td>
+                        <select id="selAssetExpStatus2" multiple size="4">
+                            <option value="pending">Pending</option>
+                            <option value="interrupted">Interrupted</option>
+                            <option value="success">Success</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxNotAssetExpStatus2">negate status: </label>
+                    </td>
+                    <td>
+                        <input id="cbxNotAssetExpStatus2" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="idtStartDate4">start date: </label>
+                    </td>
+                    <td>
+                        <input id="idtStartDate4" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="idtEndDate4">end date: </label>
+                    </td>
+                    <td>
+                        <input id="idtEndDate4" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetMgrLimit">max. returned asset migrations: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetMgrLimit" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxAssetMgrSkip">asset migrations to skip: </label>
+                    </td>
+                    <td>
+                        <input id="itxAssetMgrSkip" type="text" maxlength="10" size="10"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnListAssetMgr" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields(4) && (checkUndefined(getFieldValue('itxAssetMgrLimit',true)) === undefined || checkNumberField('itxAssetMgrLimit')) && (checkUndefined(getFieldValue('itxAssetMgrSkip',true)) === undefined || checkNumberField('itxAssetMgrSkip'))){listAssetMigrations(checkUndefined(getFieldValue('itxAssetId11',true)),checkUndefined(getFieldValue('selForeignBc5',true)),checkUndefined(getFieldValue('selMgrDirection2',true)),checkUndefined(getSelectList('selAssetExpStatus2')),isFieldChecked('cbxNotAssetExpStatus2'),formatDate(getFieldValue('idtStartDate4')),formatDate(getFieldValue('idtEndDate4')),parseNumber(checkUndefined(getFieldValue('itxAssetMgrLimit'))),parseNumber(checkUndefined(getFieldValue('itxAssetMgrSkip'))))}else{return false}">List Asset Migrations</button>
                     </td>
                 </tr>
             </table>
