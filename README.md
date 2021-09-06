@@ -1,9 +1,9 @@
 # Catenis API Test Page
 
-This is an HTML page that can be used to exercise and test every aspect of the Catenis Enterprise REST API.
+This is an HTML page that can be used to exercise and test every aspect of the Catenis REST API.
 
 This current release uses version 6.0.1 of the Catenis API JavaScript client library and is compliant with version 0.11
- of the Catenis Enterprise API.
+ of the Catenis API.
 
 ## Usage
 
