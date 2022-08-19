@@ -61,6 +61,20 @@
 
                     break;
 
+                    case 'debug': {
+                        env = {
+                            defaultDevice: {
+                                deviceId: 'dchLYMJeB8EznJtjERfx',
+                                apiAccessSecret: '908687ba8fca5264aca2606342b45eea1ce921bb1d6f17a683b05a1af342cdc888d2a91fe118dc11a351d14df992e88266141c71a17ded2037eeeaf915a473fd'
+                            },
+                            opts: {
+                                host: 'debug.catenis.io'
+                            }
+                        };
+                    }
+
+                    break;
+
                     default:
                         throw new Error('Invalid Catenis environment');
                 }
@@ -1032,6 +1046,7 @@
         <div id="divEnvironment">
             <label for="selEnvironment">Environment: </label><select id="selEnvironment" onchange="clearApiResult(); resetDevice(); initApiClient()">
                 <option value="development" selected>Development</option>
+                <option value="debug">Debug</option>
                 <option value="sandbox">Sandbox</option>
                 <option value="prod">Production</option>
             </select>
