@@ -22,6 +22,13 @@
             var lastMsgId;
             var lastContToken;
             var lastEphemMsgId;
+            var lastNFAssetId;
+            var lastNFTokenIds;
+            var lastNFAIssuanceContToken;
+            var lastNFAIssuanceId;
+            var lastNFTRetrievalContToken;
+            var lastNFTRetrievalId;
+            var lastNFTTransferId;
 
             function resetDevice() {
                 device = {};
@@ -353,6 +360,79 @@
                 }, limit, skip, processResult);
             }
 
+            function issueNonFungibleAsset(nonFungibleTokens, isFinal, continuationToken, name, description, canReissue, encryptNFTContents, holdingDevices, _async) {
+                var issuanceInfoOrContinuationToken = continuationToken ? continuationToken : {
+                    assetInfo: {
+                        name: name,
+                        description: description,
+                        canReissue: canReissue
+                    },
+                    encryptNFTContents: encryptNFTContents,
+                    holdingDevices: holdingDevices,
+                    async: _async
+                };
+
+                console.debug('>>>>>> issueNonFungibleAsset() arguments:', {
+                    issuanceInfoOrContinuationToken,
+                    nonFungibleTokens,
+                    isFinal
+                });
+                ctnApiClient.issueNonFungibleAsset(issuanceInfoOrContinuationToken, nonFungibleTokens, isFinal, processNFAssetIssuanceResult);
+            }
+
+            function reissueNonFungibleAsset(assetId, nonFungibleTokens, isFinal, continuationToken, encryptNFTContents, holdingDevices, _async) {
+                var issuanceInfoOrContinuationToken = continuationToken ? continuationToken : {
+                    encryptNFTContents: encryptNFTContents,
+                    holdingDevices: holdingDevices,
+                    async: _async
+                };
+
+                console.debug('>>>>>> reissueNonFungibleAsset() arguments:', {
+                    assetId,
+                    issuanceInfoOrContinuationToken,
+                    nonFungibleTokens,
+                    isFinal
+                });
+                ctnApiClient.reissueNonFungibleAsset(assetId, issuanceInfoOrContinuationToken, nonFungibleTokens, isFinal, processNFAssetIssuanceResult);
+            }
+
+            function retrieveNonFungibleAssetIssuanceProgress(issuanceId) {
+                ctnApiClient.retrieveNonFungibleAssetIssuanceProgress(issuanceId, processNFAssetIssuanceResult);
+            }
+
+            function retrieveNonFungibleToken(tokenId, continuationToken, retrieveContents, contentsOnly, contentsEncoding, dataChunkSize, _async) {
+                var options = {
+                    retrieveContents: retrieveContents,
+                    contentsOnly: contentsOnly,
+                    contentsEncoding: contentsEncoding,
+                    dataChunkSize: dataChunkSize,
+                    async: _async,
+                    continuationToken: continuationToken
+                };
+
+                ctnApiClient.retrieveNonFungibleToken(tokenId, options, processNFTokenRetrievalResult);
+            }
+
+            function retrieveNonFungibleTokenRetrievalProgress(tokenId, retrievalId) {
+                ctnApiClient.retrieveNonFungibleTokenRetrievalProgress(tokenId, retrievalId, processNFTokenRetrievalResult);
+            }
+
+            function transferNonFungibleToken(tokenId, receivingDeviceId, isProdUniqueId, _async) {
+                var receivingDevice = {
+                    id: receivingDeviceId
+                };
+
+                if (isProdUniqueId) {
+                    receivingDevice.isProdUniqueId = isProdUniqueId;
+                }
+
+                ctnApiClient.transferNonFungibleToken(tokenId, receivingDevice, _async, processNFTokenTransferResult);
+            }
+
+            function retrieveNonFungibleTokenTransferProgress(tokenId, transferId) {
+                ctnApiClient.retrieveNonFungibleTokenTransferProgress(tokenId, transferId, processResult);
+            }
+
             function processMessageResult(err, data, parseResultOnly) {
                 if (!err && typeof data === 'object' && data !== null) {
                     if (typeof data.messageId === 'string') {
@@ -382,6 +462,62 @@
                 }
             }
 
+            function processNFAssetIssuanceResult(err, data, parseResultOnly) {
+                if (!err && typeof data === 'object' && data !== null) {
+                    if (typeof data.nfTokenIds === 'object') {
+                        lastNFTokenIds = data.nfTokenIds;
+
+                        if (typeof data.assetId === 'string') {
+                            lastNFAssetId = data.assetId;
+                        }
+                    }
+                    else if (typeof data.continuationToken === 'string') {
+                        lastNFAIssuanceContToken = data.continuationToken;
+                    }
+                    else if (typeof data.assetIssuanceId === 'string') {
+                        lastNFAIssuanceId = data.assetIssuanceId;
+                    }
+                    if (typeof data.result === 'object' && data.result !== null) {
+                        if (typeof data.result.nfTokenIds === 'object') {
+                            lastNFTokenIds = data.result.nfTokenIds;
+
+                            if (typeof data.result.assetId === 'string') {
+                                lastNFAssetId = data.result.assetId;
+                            }
+                        }
+                    }
+                }
+
+                if (!parseResultOnly) {
+                    processResult(err, data);
+                }
+            }
+
+            function processNFTokenRetrievalResult(err, data, parseResultOnly) {
+                if (!err && typeof data === 'object' && data !== null) {
+                    if (typeof data.continuationToken === 'string') {
+                        lastNFTRetrievalContToken = data.continuationToken;
+                    }
+                    else if (typeof data.tokenRetrievalId === 'string') {
+                        lastNFTRetrievalId = data.tokenRetrievalId;
+                    }
+                }
+
+                if (!parseResultOnly) {
+                    processResult(err, data);
+                }
+            }
+
+            function processNFTokenTransferResult(err, data) {
+                if (!err && typeof data === 'object' && data !== null) {
+                    if (typeof data.tokenTransferId === 'string') {
+                        lastNFTTransferId = data.tokenTransferId;
+                    }
+                }
+
+                processResult(err, data);
+            }
+
             function processResult(err, data) {
                 //showArgs.bind(undefined, 'processResult')(arguments);
                 if (err) {
@@ -400,37 +536,420 @@
                 document.getElementById('pApiResult').innerHTML = '';
             }
 
-            function getFieldValue(ctrlId, trim) {
-                var value = document.getElementById(ctrlId).value;
-                return trim ? value.trim() : value;
+            function submitIssueNFAsset(contCall) {
+                clearApiResult();
+
+                var nfTokens, isFinal, continuationToken, encryptNFTContents, holdingDevices, _async;
+
+                if(isFieldChecked('cbxNFAReissue')) {
+                    var assetId;
+
+                    if((assetId = requireField('itxNFAssetId', 'non-fungible asset ID', false, true, true)) === false) {
+                        return false;
+                    }
+
+                    if (isFieldChecked('cbxNFAIssueContCall')) {
+                        if ((continuationToken = requireField('itxNFAIssueContToken', 'asset issuance continuation token', true, true, true)) === false) {
+                            return false;
+                        }
+                    }
+                    else {
+                        encryptNFTContents = isFieldChecked('cbxEncryptNFTContents');
+                        holdingDevices = getIssueNFAssetHoldingDevices();
+                        _async = isFieldChecked('cbxIssueNFAAsync');
+                    }
+
+                    if ((nfTokens = checkIssueNFAssetNFTokens(continuationToken != null)) === false) {
+                        return false;
+                    }
+
+                    isFinal = isFieldChecked('cbxIssueNFAFinal');
+
+                    reissueNonFungibleAsset(assetId, nfTokens, isFinal, continuationToken, encryptNFTContents, holdingDevices, _async);
+                }
+                else {
+                    var name, description, canReissue;
+
+                    if (isFieldChecked('cbxNFAIssueContCall')) {
+                        if ((continuationToken = requireField('itxNFAIssueContToken', 'asset issuance continuation token', true, true, true)) === false) {
+                            return false;
+                        }
+                    }
+                    else {
+                        if((name = requireField('itxNFAssetName', 'asset name', true, true, true)) === false) {
+                            return false;
+                        }
+
+                        description = checkUndefined(getFieldValue('itxNFAssetDescription', true));
+                        canReissue = isFieldChecked('cbxNFACanReissue');
+                        encryptNFTContents = isFieldChecked('cbxEncryptNFTContents');
+                        holdingDevices = getIssueNFAssetHoldingDevices();
+                        _async = isFieldChecked('cbxIssueNFAAsync');
+                    }
+
+                    if ((nfTokens = checkIssueNFAssetNFTokens(continuationToken != null)) === false) {
+                        return false;
+                    }
+
+                    isFinal = isFieldChecked('cbxIssueNFAFinal');
+
+                    issueNonFungibleAsset(nfTokens, isFinal, continuationToken, name, description, canReissue, encryptNFTContents, holdingDevices, _async);
+                }
+            }
+
+            function submitRetrieveNFAIssuanceProgress() {
+                clearApiResult();
+
+                var assetIssuanceId;
+
+                if((assetIssuanceId = requireField('itxNFAssetIssuanceId', 'asset issuance ID', true, true, true)) === false) {
+                    return false;
+                }
+
+                retrieveNonFungibleAssetIssuanceProgress(assetIssuanceId);
+            }
+
+            function submitRetrieveNFToken() {
+                clearApiResult();
+
+                var tokenId, continuationToken, retrieveContents, contentsOnly, contentsEncoding, dataChunkSize, _async;
+
+                if((tokenId = requireField('itxRetrieveNFTTokenId', 'non-fungible token ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                if (isFieldChecked('cbxNFTRetrieveContCall')) {
+                    if ((continuationToken = requireField('itxNFTRetrieveContToken', 'token retrieval continuation token', false, true, true)) === false) {
+                        return false;
+                    }
+                }
+                else {
+                    retrieveContents = isFieldChecked('cbxRetrieveNFTContents');
+
+                    if (retrieveContents) {
+                        contentsOnly = isFieldChecked('cbxRetrieveNFTContsOnly');
+                        contentsEncoding = getFieldValue('selRetrieveNFTEncoding');
+
+                        if (checkUndefined(getFieldValue('itxRetrieveNFTChunkSize', true)) !== undefined) {
+                            if ((dataChunkSize = checkIntegerNumberField('itxRetrieveNFTChunkSize', 'size value', true)) === false) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    _async = isFieldChecked('cbxRetrieveNFTAsync');
+                }
+
+                retrieveNonFungibleToken(tokenId, continuationToken, retrieveContents, contentsOnly, contentsEncoding, dataChunkSize, _async);
+            }
+
+            function submitRetrieveNFTRetrievalProgress() {
+                clearApiResult();
+
+                var tokenId, tokenRetrievalId;
+
+                if((tokenId = requireField('itxRetrieveNFTProgressTokenId', 'non-fungible token ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                if((tokenRetrievalId = requireField('itxNFTRetrievalId', 'token retrieval ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                retrieveNonFungibleTokenRetrievalProgress(tokenId, tokenRetrievalId);
+            }
+
+            function submitTransferNFToken() {
+                clearApiResult();
+
+                var tokenId, receivingDeviceId, isProdUniqueId, _async;
+
+                if((tokenId = requireField('itxTransferNFTTokenId', 'non-fungible token ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                if((receivingDeviceId = requireField('itxTransferNFTRecvDeviceId', 'receiving device ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                isProdUniqueId = isFieldChecked('cbxTransferNFTProdUniqId');
+                _async = isFieldChecked('cbxTransferNFTAsync');
+
+                transferNonFungibleToken(tokenId, receivingDeviceId, isProdUniqueId, _async);
+            }
+
+            function submitRetrieveNFTTransferProgress() {
+                clearApiResult();
+
+                var tokenId, tokenTransferId;
+
+                if((tokenId = requireField('itxTransferNFTProgressTokenId', 'non-fungible token ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                if((tokenTransferId = requireField('itxNFTTransferId', 'token transfer ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                retrieveNonFungibleTokenTransferProgress(tokenId, tokenTransferId);
+            }
+
+            function getIssueNFAssetHoldingDevices() {
+                var fieldSetEntries = getFieldSetEntries(document.getElementById('tblNFTHoldingDevices'), [
+                    {
+                        fieldName: 'id',
+                        className: 'itxNFTHoldDeviceId'
+                    },
+                    {
+                        fieldName: 'isProdUniqueId',
+                        className: 'cbxNFTProdUniqId'
+                    }
+                ]);
+                var holdingDevices = [];
+
+                for (var fieldSetEntry of fieldSetEntries) {
+                    var id = getFieldValue(fieldSetEntry.id, true);
+
+                    if (id) {
+                        holdingDevices.push({
+                            id: id,
+                            isProdUniqueId: isFieldChecked(fieldSetEntry.isProdUniqueId)
+                        });
+                    }
+                }
+
+                return holdingDevices.length > 0 ? holdingDevices : undefined;
+            }
+
+            function checkIssueNFAssetNFTokens(contCall) {
+                var fieldSetEntries = getFieldSetEntries(document.getElementById('tblNFTokens'), [
+                    {
+                        fieldName: 'name',
+                        className: 'itxNFTName'
+                    },
+                    {
+                        fieldName: 'description',
+                        className: 'itxNFTDescription'
+                    },
+                    {
+                        fieldName: 'customProps',
+                        className: 'tblCustomProps',
+                        fieldDescriptors: [
+                            {
+                                fieldName: 'name',
+                                className: 'itxNFTCustomPropName'
+                            },
+                            {
+                                fieldName: 'value',
+                                className: 'itxNFTCustomPropValue'
+                            },
+                            {
+                                fieldName: 'type',
+                                className: 'selNFTCustomPropType'
+                            },
+                            {
+                                fieldName: 'sensitive',
+                                className: 'cbxNFTCustomPropSensitive'
+                            }
+                        ]
+                    },
+                    {
+                        fieldName: 'contents',
+                        className: 'itxNFTContents'
+                    },
+                    {
+                        fieldName: 'encoding',
+                        className: 'selNFTContEncoding'
+                    }
+                ]);
+                var nfTokens = [];
+
+                for (var fieldSetEntry of fieldSetEntries) {
+                    var nftContents;
+                    var contentsEncoding;
+
+                    if (!contCall) {
+                        var tokenName = getFieldValue(fieldSetEntry.name, true);
+                        var tokenDescription = checkUndefined(getFieldValue(fieldSetEntry.description, true))
+                        var customProps;
+
+                        if ((customProps = checkIssueNFAssetNFTCustomProps(fieldSetEntry.customProps)) === false) {
+                            return false;
+                        }
+
+                        contentsEncoding = getFieldValue(fieldSetEntry.encoding);
+                        nftContents = getFieldValue(fieldSetEntry.contents, contentsEncoding !== 'utf8');
+
+                        if (!tokenName && (tokenDescription || customProps || nftContents)) {
+                            requireField(fieldSetEntry.name, 'token name', false, true);
+                            return false;
+                        }
+
+                        if (tokenName) {
+                            var nfToken = {
+                                metadata: {
+                                    name: tokenName,
+                                    description: tokenDescription
+                                }
+                            };
+
+                            if (customProps) {
+                                nfToken.metadata.custom = customProps;
+                            }
+
+                            if (nftContents) {
+                                nfToken.contents = {
+                                    data: nftContents,
+                                    encoding: contentsEncoding
+                                }
+                            }
+
+                            nfTokens.push(nfToken);
+                        }
+                        else {
+                            nfTokens.push(null);
+                        }
+                    }
+                    else {
+                        contentsEncoding = getFieldValue(fieldSetEntry.encoding);
+                        nftContents = getFieldValue(fieldSetEntry.contents, contentsEncoding !== 'utf8');
+
+                        if (nftContents) {
+                            nfToken = {
+                                contents: {
+                                    data: nftContents,
+                                    encoding: contentsEncoding
+                                }
+                            }
+
+                            nfTokens.push(nfToken);
+                        }
+                        else {
+                            nfTokens.push(null);
+                        }
+                    }
+                }
+
+                return nfTokens.length === 0 || nfTokens.every(function (token) {return token === null}) ? undefined : nfTokens;
+            }
+
+            function checkIssueNFAssetNFTCustomProps(customPropEntries) {
+                var customProps = {};
+
+                if (customPropEntries.length > 0) {
+                    var sensitiveProps = {};
+
+                    for (var customPropEntry of customPropEntries) {
+                        var propName = getFieldValue(customPropEntry.name, true);
+                        var propType = getFieldValue(customPropEntry.type);
+                        var propValue = getFieldValue(customPropEntry.value, propType !== 'string');
+
+                        if (!propName && propValue) {
+                            requireField(customPropEntry.name, 'property name', false, true);
+                            return false;
+                        }
+
+                        if (propName && !propValue) {
+                            requireField(customPropEntry.value, 'property value', false, propType !== 'string');
+                            return false;
+                        }
+
+                        if (propName) {
+                            switch (propType) {
+                                case 'string':
+                                    break;
+
+                                case 'boolean':
+                                    if ((propValue = checkBooleanField(customPropEntry.value)) === null) {
+                                        return false;
+                                    }
+                                    break;
+
+                                case 'number':
+                                    if ((propValue = checkNumberField(customPropEntry.value, undefined, true)) === false) {
+                                        return false;
+                                    }
+                                    break
+                            }
+
+                            if (isFieldChecked(customPropEntry.sensitive)) {
+                                sensitiveProps[propName] = propValue;
+                            }
+                            else {
+                                customProps[propName] = propValue;
+                            }
+                        }
+                    }
+
+                    if (Object.keys(sensitiveProps).length > 0) {
+                        customProps.sensitiveProps = sensitiveProps;
+                    }
+                }
+
+                return Object.keys(customProps).length > 0 ? customProps : undefined;
+            }
+
+            function getFieldSetEntries(rootElem, fieldDescriptors) {
+                var entries = [];
+
+                for (var fieldDescriptor of fieldDescriptors) {
+                    var fieldElems = rootElem.getElementsByClassName(fieldDescriptor.className);
+
+                    for (var idx = 0, limit = fieldElems.length; idx < limit; idx++) {
+                        var entry = (idx in entries) ? entries[idx] : entries[idx] = {};
+                        var fieldElem = fieldElems[idx];
+
+                        entry[fieldDescriptor.fieldName] = fieldDescriptor.fieldDescriptors ? getFieldSetEntries(fieldElem, fieldDescriptor.fieldDescriptors) : fieldElem;
+                    }
+                }
+
+                return entries;
+            }
+
+            function stricParseNumber(val) {
+                return typeof val === 'string' && /^[+-]?(?:\d+|\d*\.\d*)$/.test(val) ? parseFloat(val) : NaN;
+            }
+
+            function strictParseInt(val) {
+                return typeof val === 'string' && /^[+-]?\d+$/.test(val) ? parseInt(val) : NaN;
+            }
+
+            function strictParseBoolean(val) {
+                return /^(?:0|false)$/i.test(val) ? false : (/^(?:1|true)$/i) ? true : null;
+            }
+
+            function getFieldValue(ctrlId, trim, doNotUpdateValue) {
+                var ctrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
+                var value = trim ? (value = ctrl.value.trim(), doNotUpdateValue ? value: ctrl.value = value) : ctrl.value;
+                return value;
             }
 
             function checkFieldValue(ctrlId, value) {
-                return document.getElementById(ctrlId).value === value;
+                return (ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId)).value === value;
             }
 
             function getSelectList(ctrlId) {
-                return Array.prototype.map.call(document.getElementById(ctrlId).selectedOptions,function(opt){return opt.value}).join(',');
+                return Array.prototype.map.call((ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId)).selectedOptions,function(opt){return opt.value}).join(',');
             }
 
             function parseNumber(val) {
-                return val ? parseInt(val) : val;
+                return val ? strictParseInt(val) : val;
             }
 
             function parseAmount(val) {
-                return val ? parseFloat(val) : val;
+                return val ? stricParseNumber(val) : val;
             }
 
             function isFieldChecked(ctrlId) {
-                return document.getElementById(ctrlId).checked;
+                return (ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId)).checked;
             }
 
-            function requireField(ctrlId, fieldName, startsWithVowel, trim) {
-                var fieldCtrl = document.getElementById(ctrlId);
-                var fieldValue = trim ? fieldCtrl.value.trim() : fieldCtrl.value;
+            function requireField(ctrlId, fieldName, startsWithVowel, trim, getValue) {
+                var fieldCtrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
+                var fieldValue = getFieldValue(fieldCtrl, trim);
 
                 if (fieldValue && fieldValue.length > 0) {
-                    return true;
+                    return getValue ? fieldValue : true;
                 }
                 else {
                     alert('Please enter ' + (startsWithVowel ? 'an ' : 'a ') + fieldName);
@@ -449,12 +968,13 @@
             }
 
             function checkDateField(ctrlId) {
-                var startDate = document.getElementById(ctrlId);
+                var dateCtrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
+                var fieldValue;
 
-                if (startDate && checkUndefined(startDate.value.trim())) {
-                    if (!moment(startDate.value.trim()).isValid()) {
+                if (dateCtrl && checkUndefined(fieldValue = getFieldValue(dateCtrl, true))) {
+                    if (!moment(fieldValue).isValid()) {
                         alert('Invalid date and time. Please enter date and time in a ISO-8601 format like \'YYYY-MM-DD HH:mm:ss\'');
-                        startDate.focus();
+                        dateCtrl.focus();
                         return false;
                     }
                 }
@@ -472,37 +992,55 @@
                 return undefined;
             }
 
-            function checkNumberField(ctrlId) {
-                var fieldCtrl = document.getElementById(ctrlId);
+            function checkIntegerNumberField(ctrlId, valueDescription, getValue) {
+                var fieldCtrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
 
                 if (fieldCtrl) {
-                    var val = parseInt(fieldCtrl.value);
+                    var val = strictParseInt(fieldCtrl.value);
 
                     if (isNaN(val)) {
-                        alert('Invalid number');
+                        alert('Invalid ' + (valueDescription ? valueDescription : 'integer number'));
                         fieldCtrl.focus();
                         return false;
                     }
 
-                    return true;
+                    return getValue ? val : true;
                 }
 
                 return false;
             }
 
-            function checkAmountField(ctrlId) {
-                var fieldCtrl = document.getElementById(ctrlId);
+            function checkBooleanField(ctrlId, valueDescription) {
+                var fieldCtrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
 
                 if (fieldCtrl) {
-                    var val = parseFloat(fieldCtrl.value);
+                    var val = strictParseBoolean(fieldCtrl.value);
+
+                    if (val === null) {
+                        alert('Invalid ' + (valueDescription ? valueDescription : 'boolean value'));
+                        fieldCtrl.focus();
+                        return null;
+                    }
+
+                    return val;
+                }
+
+                return null;
+            }
+
+            function checkNumberField(ctrlId, valueDescription, getValue) {
+                var fieldCtrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
+
+                if (fieldCtrl) {
+                    var val = stricParseNumber(fieldCtrl.value);
 
                     if (isNaN(val)) {
-                        alert('Invalid amount');
+                        alert('Invalid ' + (valueDescription ? valueDescription : 'number'));
                         fieldCtrl.focus();
                         return false;
                     }
 
-                    return true;
+                    return getValue ? val : true;
                 }
 
                 return false;
@@ -556,6 +1094,48 @@
             function fillWithLastEphemMsgId(fieldId) {
                 if (lastEphemMsgId) {
                     document.getElementById(fieldId).value = lastEphemMsgId;
+                }
+            }
+
+            function fillWithLastNFAssetId(fieldId) {
+                if (lastNFAssetId) {
+                    document.getElementById(fieldId).value = lastNFAssetId;
+                }
+            }
+
+            function showLastNFTokenIds() {
+                if (lastNFTokenIds) {
+                    alert('Last issued non-fungible tokens:\n\n' + lastNFTokenIds.join('\n'));
+                }
+            }
+
+            function fillWithLastNFAIssuanceContToken(fieldId) {
+                if (lastNFAIssuanceContToken) {
+                    document.getElementById(fieldId).value = lastNFAIssuanceContToken;
+                }
+            }
+
+            function fillWithLastNFAIssuanceId(fieldId) {
+                if (lastNFAIssuanceId) {
+                    document.getElementById(fieldId).value = lastNFAIssuanceId;
+                }
+            }
+
+            function fillWithLastNFTRetrievalContToken(fieldId) {
+                if (lastNFTRetrievalContToken) {
+                    document.getElementById(fieldId).value = lastNFTRetrievalContToken;
+                }
+            }
+
+            function fillWithLastNFTRetrievalId(fieldId) {
+                if (lastNFTRetrievalId) {
+                    document.getElementById(fieldId).value = lastNFTRetrievalId;
+                }
+            }
+
+            function fillWithLastNFTTransferId(fieldId) {
+                if (lastNFTTransferId) {
+                    document.getElementById(fieldId).value = lastNFTTransferId;
                 }
             }
 
@@ -718,7 +1298,7 @@
                 var allowCtnNodeIndices = [];
                 (function (inputElems) {
                     for (var idx = 0; idx < inputElems.length; idx++) {
-                        var value = checkUndefined(inputElems[idx].value.trim());
+                        var value = checkUndefined(getFieldValue(inputElems[idx], true));
                         if (value)
                             allowCtnNodeIndices.push(value);
                     }
@@ -727,7 +1307,7 @@
                 var denyCtnNodeIndices = [];
                 (function (inputElems) {
                     for (var idx = 0; idx < inputElems.length; idx++) {
-                        var value = checkUndefined(inputElems[idx].value.trim());
+                        var value = checkUndefined(getFieldValue(inputElems[idx], true));
                         if (value)
                             denyCtnNodeIndices.push(value);
                     }
@@ -736,7 +1316,7 @@
                 var noneCtnNodeIndices = [];
                 (function (inputElems) {
                     for (var idx = 0; idx < inputElems.length; idx++) {
-                        var value = checkUndefined(inputElems[idx].value.trim());
+                        var value = checkUndefined(getFieldValue(inputElems[idx], true));
                         if (value)
                             noneCtnNodeIndices.push(value);
                     }
@@ -758,7 +1338,7 @@
                 var allowClientIds = [];
                 (function (inputElems) {
                     for (var idx = 0; idx < inputElems.length; idx++) {
-                        var value = checkUndefined(inputElems[idx].value.trim());
+                        var value = checkUndefined(getFieldValue(inputElems[idx], true));
                         if (value)
                             allowClientIds.push(value);
                     }
@@ -767,7 +1347,7 @@
                 var denyClientIds = [];
                 (function (inputElems) {
                     for (var idx = 0; idx < inputElems.length; idx++) {
-                        var value = checkUndefined(inputElems[idx].value.trim());
+                        var value = checkUndefined(getFieldValue(inputElems[idx], true));
                         if (value)
                             denyClientIds.push(value);
                     }
@@ -776,7 +1356,7 @@
                 var noneClientIds = [];
                 (function (inputElems) {
                     for (var idx = 0; idx < inputElems.length; idx++) {
-                        var value = checkUndefined(inputElems[idx].value.trim());
+                        var value = checkUndefined(getFieldValue(inputElems[idx], true));
                         if (value)
                             noneClientIds.push(value);
                     }
@@ -803,7 +1383,7 @@
                         (function (inputElems) {
                             for (var idx = 0; idx < inputElems.length; idx++) {
                                 if (idx === 0) {
-                                    var value = checkUndefined(inputElems[idx].value.trim());
+                                    var value = checkUndefined(getFieldValue(inputElems[idx], true));
                                     if (value)
                                         deviceId.id = value;
                                 }
@@ -827,7 +1407,7 @@
                         (function (inputElems) {
                             for (var idx = 0; idx < inputElems.length; idx++) {
                                 if (idx === 0) {
-                                    var value = checkUndefined(inputElems[idx].value.trim());
+                                    var value = checkUndefined(getFieldValue(inputElems[idx], true));
                                     if (value)
                                         deviceId.id = value;
                                 }
@@ -851,7 +1431,7 @@
                         (function (inputElems) {
                             for (var idx = 0; idx < inputElems.length; idx++) {
                                 if (idx === 0) {
-                                    var value = checkUndefined(inputElems[idx].value.trim());
+                                    var value = checkUndefined(getFieldValue(inputElems[idx], true));
                                     if (value)
                                         deviceId.id = value;
                                 }
@@ -957,6 +1537,12 @@
                         if (this.eventName === 'final-msg-progress') {
                             processMessageResult(null, data, true);
                         }
+                        else if (this.eventName === 'nf-asset-issuance-outcome') {
+                            processNFAssetIssuanceResult(null, data, true);
+                        }
+                        else if (this.eventName === 'nf-token-retrieval-outcome') {
+                            processNFTokenRetrievalResult(null, data, true);
+                        }
 
                         showWSActiviy(this.eventName, '<span style="color: blue;">RECEIVED DATA:</span><pre>' + JSON.stringify(data, null, '  ') + '</pre>');
                     });
@@ -986,6 +1572,7 @@
                     'divMessage',
                     'divPermNotif',
                     'divAsset',
+                    'divNFAsset',
                     'divAssetExport'
                 ];
 
@@ -996,7 +1583,7 @@
 
             function displayTableRows(ids, show) {
                 ids.forEach(function (id) {
-                    document.getElementById(id).style.display = show ? 'table-row' : 'none';
+                    (id instanceof HTMLElement ? id : document.getElementById(id)).style.display = show ? 'table-row' : 'none';
                 });
             }
 
@@ -1021,6 +1608,138 @@
                 }
             }
 
+            function setNFAssetIssueFields(reissue, contCall) {
+                var allRowIds = [
+                    'trNFAssetId',
+                    'trNFAIssueContToken',
+                    'trNFAssetName',
+                    'trNFAssetDescription',
+                    'trNFACanReissue',
+                    'trEncryptNFTContents',
+                    'trIssueNFAAsync',
+                    'trNFTHoldingDevices'
+                ];
+                var allRowClasses = [
+                    'trNFTName',
+                    'trNFTDescription',
+                    'trNFTCustomProps'
+                ];
+                var issueInitCallRowIds = [
+                    'trNFAssetName',
+                    'trNFAssetDescription',
+                    'trNFACanReissue',
+                    'trEncryptNFTContents',
+                    'trIssueNFAAsync',
+                    'trNFTHoldingDevices'
+                ];
+                var issueInitCallRowClasses = [
+                    'trNFTName',
+                    'trNFTDescription',
+                    'trNFTCustomProps'
+                ];
+                var issueContCallRowIds = [
+                    'trNFAIssueContToken'
+                ];
+                var issueContCallRowClasses = [];
+                var reissueInitCallRowIds = [
+                    'trNFAssetId',
+                    'trEncryptNFTContents',
+                    'trIssueNFAAsync',
+                    'trNFTHoldingDevices'
+                ];
+                var reissueInitCallRowClasses = [
+                    'trNFTName',
+                    'trNFTDescription',
+                    'trNFTCustomProps'
+                ];
+                var reissueContCallRowIds = [
+                    'trNFAssetId',
+                    'trNFAIssueContToken'
+                ];
+                var reissueContCallRowClasses = [];
+
+                var activeRowIds;
+                var activeRowClasses;
+
+                if (!reissue) {
+                    if (!contCall) {
+                        activeRowIds = issueInitCallRowIds;
+                        activeRowClasses = issueInitCallRowClasses;
+                    }
+                    else {
+                        activeRowIds = issueContCallRowIds;
+                        activeRowClasses = issueContCallRowClasses;
+                    }
+                }
+                else {
+                    if (!contCall) {
+                        activeRowIds = reissueInitCallRowIds;
+                        activeRowClasses = reissueInitCallRowClasses;
+                    }
+                    else {
+                        activeRowIds = reissueContCallRowIds;
+                        activeRowClasses = reissueContCallRowClasses;
+                    }
+                }
+
+                if (activeRowClasses.length > 0) {
+                    activeRowIds = activeRowIds.concat(activeRowClasses.reduce(function (ids, className) {
+                        ids = ids.concat(Array.from(document.getElementsByClassName(className)));
+                        return ids;
+                    }, []));
+                }
+
+                allRowIds = allRowIds.concat(allRowClasses.reduce(function (ids, className) {
+                    ids = ids.concat(Array.from(document.getElementsByClassName(className)));
+                    return ids;
+                }, []));
+
+                displayTableRows(activeRowIds, true);
+                displayTableRows(allRowIds.filter(function (rowId) {return !activeRowIds.includes(rowId)}), false);
+            }
+
+            function setNFTRetrieveFields(contCall, retrieveContents) {
+                var allRowIds = [
+                    'trNFTRetrieveContToken',
+                    'trRetrieveNFTContents',
+                    'trRetrieveNFTContsOnly',
+                    'trRetrieveNFTEncoding',
+                    'RetrieveNFTChunkSize',
+                    'trRetrieveNFTAsync'
+                ];
+                var initCallContentsRowIds = [
+                    'trRetrieveNFTContents',
+                    'trRetrieveNFTContsOnly',
+                    'trRetrieveNFTEncoding',
+                    'RetrieveNFTChunkSize',
+                    'trRetrieveNFTAsync'
+                ];
+                var initCallNoContentsRowIds = [
+                    'trRetrieveNFTContents',
+                    'trRetrieveNFTAsync'
+                ];
+                var contCallRowIds = [
+                    'trNFTRetrieveContToken'
+                ];
+
+                var activeRowIds;
+
+                if (!contCall) {
+                    if (retrieveContents) {
+                        activeRowIds = initCallContentsRowIds;
+                    }
+                    else {
+                        activeRowIds = initCallNoContentsRowIds;
+                    }
+                }
+                else {
+                    activeRowIds = contCallRowIds;
+                }
+
+                displayTableRows(activeRowIds, true);
+                displayTableRows(allRowIds.filter(function (rowId) {return !activeRowIds.includes(rowId)}), false);
+            }
+
             function setAssetMigrationFields(reprocess) {
                 var reprocessRowIds = [
                     'trMigrationId'
@@ -1040,6 +1759,183 @@
                     displayTableRows(migrationRowIds, true);
                 }
             }
+
+            function addNFTHoldingDevice(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+                var deviceIdInputs = table.getElementsByClassName('itxNFTHoldDeviceId');
+                var nextDevNum = (Number.parseInt(deviceIdInputs[deviceIdInputs.length - 1].id.match(/_(\d+)$/)[1]) + 1).toString();
+
+                [
+                    // Header
+                    '<td colspan="2" style="padding-top:1em">Device #{!device_num}&nbsp;&nbsp;<a href="#" onclick="deleteNFTHoldingDevice(getAncestorByTagName(this,\'tr\'));return false">delete</a>&nbsp;&nbsp;<a href="#" onclick="deleteExtraNFTHoldingDevices(getAncestorByTagName(this,\'tr\'));return false">delete all</a></td>',
+                    // Device ID
+                    '<td valign="top" align="right"><label for="itxNFTHoldDeviceId_{!device_num}">ID: </label></td><td><input id="itxNFTHoldDeviceId_{!device_num}" class="itxNFTHoldDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/><br/><label for="cbxNFTProdUniqId_{!device_num}">product unique ID: </label><input id="cbxNFTProdUniqId_{!device_num}" class="cbxNFTProdUniqId" type="checkbox"/></td>'
+                ]
+                .forEach(function (cells) {
+                    var row = table.insertRow();
+                    row.innerHTML = cells.replaceAll('{!device_num}', nextDevNum);
+                });
+            }
+
+            function deleteNFTHoldingDevice(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+                var numRows = table.rows.length;
+                var firstRowIndex;
+
+                for (let idx = 2; idx < numRows; idx++) {
+                    if (table.rows[idx] === sourceRow) {
+                        firstRowIndex = idx;
+                        break;
+                    }
+                }
+
+                if (firstRowIndex !== undefined) {
+                    for (let rowIndex = Math.min(firstRowIndex + 1, numRows - 1); rowIndex >= firstRowIndex; rowIndex--) {
+                        table.deleteRow(rowIndex);
+                    }
+                }
+            }
+
+            function deleteExtraNFTHoldingDevices(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+
+                for (let rowIdx = table.rows.length - 1; rowIdx > 1; rowIdx--) {
+                    table.deleteRow(rowIdx);
+                }
+            }
+
+            function addNFToken(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+                var nftNameInputs = table.getElementsByClassName('itxNFTName');
+                var nextTokenNum = (Number.parseInt(nftNameInputs[nftNameInputs.length - 1].id.match(/_(\d+)$/)[1]) + 1).toString();
+
+                [
+                    // Header
+                    {
+                        innerHTML: '<td colspan="2" style="padding-top:1em">Token #{!token_num}&nbsp;&nbsp;<a href="#" onclick="deleteNFToken(getAncestorByTagName(this,\'tr\'));return false">delete</a>&nbsp;&nbsp;<a href="#" onclick="deleteExtraNFTokens(getAncestorByTagName(this,\'tr\'));return false">delete all</a></td>'
+                    },
+                    // Token name
+                    {
+                        className: 'trNFTName',
+                        innerHTML: '<td valign="top" align="right"><label for="itxNFTName_{!token_num}">name: </label></td><td><input id="itxNFTName_{!token_num}" class="itxNFTName" type="text" maxlength="25" size="25"/></td>'
+                    },
+                    // Token description
+                    {
+                        className: 'trNFTDescription',
+                        innerHTML: '<td valign="top" align="right"><label for="itxNFTDescription_{!token_num}">description: </label></td><td><input id="itxNFTDescription_{!token_num}" class="itxNFTDescription" type="text" maxlength="80" size="80"/></td>'
+                    },
+                    // Custom props
+                    {
+                        className: 'trNFTCustomProps',
+                        innerHTML: '<td valign="top" align="right"><label>Custom props: </label></td><td><table class="tblCustomProps"><tr><td colspan="2">Property #1&nbsp;&nbsp;<a href="#" onclick="addCustomProp(getAncestorByTagName(this,\'tr\'));return false">add new</a></td></tr><tr><td valign="top" align="right"><label for="itxNFTCustomPropName_{!token_num}_1">name: </label></td><td><input id="itxNFTCustomPropName_{!token_num}_1" class="itxNFTCustomPropName" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/></td></tr><tr><td valign="top" align="right"><label for="itxNFTCustomPropValue_{!token_num}_1">value: </label></td><td><input id="itxNFTCustomPropValue_{!token_num}_1" class="itxNFTCustomPropValue" style="margin-bottom:0.5em" type="text" maxlength="256" size="80"/></td></tr><tr><td valign="top" align="right"><label for="selNFTCustomPropType_{!token_num}_1">type: </label></td><td><select id="selNFTCustomPropType_{!token_num}_1" class="selNFTCustomPropType"><option value="string" selected>String</option><option value="boolean">Boolean</option><option value="number">Number</option></select></td></tr><tr><td valign="top" align="right"><label for="cbxNFTCustomPropSensitive_{!token_num}_1">sensitive: </label></td><td><input id="cbxNFTCustomPropSensitive_{!token_num}_1" class="cbxNFTCustomPropSensitive" style="margin-bottom:0.5em" type="checkbox"/></td></tr></table></td>'
+                    },
+                    // Contents
+                    {
+                        innerHTML: '<td valign="top" align="right"><label for="itxNFTContents_{!token_num}">Contents: </label></td><td><textarea id="itxNFTContents_{!token_num}" class="itxNFTContents" rows="5" cols="80"></textarea></td>'
+                    },
+                    // Encoding
+                    {
+                        innerHTML: '<td valign="top" align="right"><label for="selNFTContEncoding_{!token_num}">encoding: </label></td><td><select id="selNFTContEncoding_{!token_num}" class="selNFTContEncoding"><option value="utf8" selected>UTF-8</option><option value="base64">Base-64</option><option value="hex">Hex</option></select></td>'
+                    }
+                ]
+                .forEach(function (cellInfo) {
+                    var row = table.insertRow();
+                    if (cellInfo.className) {
+                        row.className = cellInfo.className;
+                    }
+                    row.innerHTML = cellInfo.innerHTML.replaceAll('{!token_num}', nextTokenNum);
+                });
+            }
+
+            function deleteNFToken(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+                var numRows = table.rows.length;
+                var firstRowIndex;
+
+                for (let idx = 6; idx < numRows; idx++) {
+                    if (table.rows[idx] === sourceRow) {
+                        firstRowIndex = idx;
+                        break;
+                    }
+                }
+
+                if (firstRowIndex !== undefined) {
+                    for (let rowIndex = Math.min(firstRowIndex + 5, numRows - 1); rowIndex >= firstRowIndex; rowIndex--) {
+                        table.deleteRow(rowIndex);
+                    }
+                }
+            }
+
+            function deleteExtraNFTokens(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+
+                for (let rowIdx = table.rows.length - 1; rowIdx > 5; rowIdx--) {
+                    table.deleteRow(rowIdx);
+                }
+            }
+
+            function addCustomProp(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+                var propNameInputs = table.getElementsByClassName('itxNFTCustomPropName');
+                var match = propNameInputs[propNameInputs.length - 1].id.match(/_(\d+)_(\d+)$/);
+                var tokenNum = (Number.parseInt(match[1]) + 1).toString();
+                var nextPropNum = (Number.parseInt(match[2]) + 1).toString();
+
+                [
+                    // Header
+                    '<td colspan="2" style="padding-top:1em">Property #{!prop_num}&nbsp;&nbsp;<a href="#" onclick="deleteCustomProp(getAncestorByTagName(this,\'tr\'));return false">delete</a>&nbsp;&nbsp;<a href="#" onclick="deleteExtraCustomProps(getAncestorByTagName(this,\'tr\'));return false">delete all</a></td>',
+                    // Name
+                    '<td valign="top" align="right"><label for="itxNFTCustomPropName_{!token_num}_{!prop_num}">name: </label></td><td><input id="itxNFTCustomPropName_{!token_num}_{!prop_num}" class="itxNFTCustomPropName" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/></td>',
+                    // Value
+                    '<td valign="top" align="right"><label for="itxNFTCustomPropValue_{!token_num}_{!prop_num}">value: </label></td><td><input id="itxNFTCustomPropValue_{!token_num}_{!prop_num}" class="itxNFTCustomPropValue" style="margin-bottom:0.5em" type="text" maxlength="256" size="80"/></td>',
+                    // Type
+                    '<td valign="top" align="right"><label for="selNFTCustomPropType_{!token_num}_{!prop_num}">type: </label></td><td><select id="selNFTCustomPropType_{!token_num}_{!prop_num}" class="selNFTCustomPropType"><option value="string" selected>String</option><option value="boolean">Boolean</option><option value="number">Number</option></select></td>',
+                    // Sensitive
+                    '<td valign="top" align="right"><label for="cbxNFTCustomPropSensitive_{!token_num}_{!prop_num}">sensitive: </label></td><td><input id="cbxNFTCustomPropSensitive_{!token_num}_{!prop_num}" class="cbxNFTCustomPropSensitive" style="margin-bottom:0.5em" type="checkbox"/></td>'
+                ]
+                .forEach(function (cells) {
+                    var row = table.insertRow();
+                    row.innerHTML = cells.replaceAll('{!token_num}', tokenNum).replaceAll('{!prop_num}', nextPropNum);
+                });
+            }
+
+            function deleteCustomProp(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+                var numRows = table.rows.length;
+                var firstRowIndex;
+
+                for (let idx = 5; idx < numRows; idx++) {
+                    if (table.rows[idx] === sourceRow) {
+                        firstRowIndex = idx;
+                        break;
+                    }
+                }
+
+                if (firstRowIndex !== undefined) {
+                    for (let rowIndex = Math.min(firstRowIndex + 4, numRows - 1); rowIndex >= firstRowIndex; rowIndex--) {
+                        table.deleteRow(rowIndex);
+                    }
+                }
+            }
+
+            function deleteExtraCustomProps(sourceRow) {
+                var table = getAncestorByTagName(sourceRow, 'table');
+
+                for (let rowIdx = table.rows.length - 1; rowIdx > 4; rowIdx--) {
+                    table.deleteRow(rowIdx);
+                }
+            }
+
+            function getAncestorByTagName(elem, tagName) {
+                var ancestor = elem;
+
+                do {
+                    ancestor = ancestor.parentElement;
+                }
+                while (ancestor != null && ancestor.tagName !== tagName.toUpperCase());
+
+                return ancestor != null ? ancestor : undefined;
+            }
         </script>
     </head>
     <body>
@@ -1056,6 +1952,7 @@
         <div style="margin-top:1em">
             <a href="javascript:selectPanel('divMessage')">Messages</a>
             &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAsset')">Assets</a>
+            &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divNFAsset')">Non-Fungible Assets</a>
             &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divAssetExport')">Asset Export</a>
             &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel('divPermNotif')">Permission & Notification</a>
             &nbsp;&nbsp;&nbsp;<a href="javascript:selectPanel(null)">None</a>
@@ -1130,7 +2027,7 @@
                         <div style="margin-top:0.5em">
                             <label for="cbxReadMsgAsync">Asynchronous processing: </label><input id="cbxReadMsgAsync" type="checkbox" />
                         </div>
-                        <button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID') && (!isFieldChecked('cbxReadMsgChunks') || requireField('itxDataChunkSize','chunk size',false,true)) && (checkUndefined(getFieldValue('itxDataChunkSize',true))===undefined || checkNumberField('itxDataChunkSize'))){readMessage(getFieldValue('itxMsgId'), getFieldValue('selRdMsgEncoding'), checkUndefined(getFieldValue('itxReadContToken',true)), checkUndefined(getFieldValue('itxDataChunkSize',true)), isFieldChecked('cbxReadMsgAsync'))}else{return false}">Read Message</button>
+                        <button id="btnReadMessage" style="margin-top:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID') && (!isFieldChecked('cbxReadMsgChunks') || requireField('itxDataChunkSize','chunk size',false,true)) && (checkUndefined(getFieldValue('itxDataChunkSize',true))===undefined || checkIntegerNumberField('itxDataChunkSize'))){readMessage(getFieldValue('itxMsgId'), getFieldValue('selRdMsgEncoding'), checkUndefined(getFieldValue('itxReadContToken',true)), checkUndefined(getFieldValue('itxDataChunkSize',true)), isFieldChecked('cbxReadMsgAsync'))}else{return false}">Read Message</button>
                         <div style="margin-top:0.3em">
                             <label for="itxMsgToSign">Message to sign: </label><input id="itxMsgToSign" type="text" size="80"/>
                             <br/><button id="btnRetrieveMessageOrigin" style="margin-top:5px;margin-bottom:10px" onclick="clearApiResult(); if(requireField('itxMsgId','message ID')){retrieveMessageOrigin(getFieldValue('itxMsgId'), checkUndefined(getFieldValue('itxMsgToSign',true)))}else{return false}">Retrieve Message Origin</button>
@@ -1259,7 +2156,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields() && (checkUndefined(getFieldValue('itxMsgLimit',true)) === undefined || checkNumberField('itxMsgLimit')) && (checkUndefined(getFieldValue('itxMsgSkip',true)) === undefined || checkNumberField('itxMsgSkip'))){listMessages(checkUndefined(getFieldValue('selMsgAction')),checkUndefined(getFieldValue('selMsgDirection')),checkUndefined(getFieldValue('itxFromDeviceIds',true)),checkUndefined(getFieldValue('itxToDeviceIds',true)),checkUndefined(getFieldValue('itxFromDevProdUniqueIds',true)),checkUndefined(getFieldValue('itxToDevProdUniqueIds',true)),checkUndefined(getFieldValue('selReadState')),formatDate(getFieldValue('idtStartDate')),formatDate(getFieldValue('idtEndDate')),parseNumber(checkUndefined(getFieldValue('itxMsgLimit'))),parseNumber(checkUndefined(getFieldValue('itxMsgSkip'))))}else{return false}">List Messages</button>
+                        <button id="btnListMessages" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields() && (checkUndefined(getFieldValue('itxMsgLimit',true)) === undefined || checkIntegerNumberField('itxMsgLimit')) && (checkUndefined(getFieldValue('itxMsgSkip',true)) === undefined || checkIntegerNumberField('itxMsgSkip'))){listMessages(checkUndefined(getFieldValue('selMsgAction')),checkUndefined(getFieldValue('selMsgDirection')),checkUndefined(getFieldValue('itxFromDeviceIds',true)),checkUndefined(getFieldValue('itxToDeviceIds',true)),checkUndefined(getFieldValue('itxFromDevProdUniqueIds',true)),checkUndefined(getFieldValue('itxToDevProdUniqueIds',true)),checkUndefined(getFieldValue('selReadState')),formatDate(getFieldValue('idtStartDate')),formatDate(getFieldValue('idtEndDate')),parseNumber(checkUndefined(getFieldValue('itxMsgLimit'))),parseNumber(checkUndefined(getFieldValue('itxMsgSkip'))))}else{return false}">List Messages</button>
                     </td>
                 </tr>
            </table>
@@ -1635,7 +2532,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnIssueAsset" style="margin-top:8px" onclick="clearApiResult(); if(isFieldChecked('cbxReissue')){if(requireField('itxAssetId','asset ID',true,true) && requireField('itxIssueAmount','amount',true,true) && checkAmountField('itxIssueAmount')){reissueAsset(getFieldValue('itxAssetId',true),parseAmount(getFieldValue('itxIssueAmount')),checkUndefined(getFieldValue('itxHoldDeviceId',true)),isFieldChecked('cbxProdUniqId2'))}else{return false}}else{if(requireField('itxAssetName','asset name',true,true) && requireField('itxDecimalPlaces','value for decimal places',false,true) && checkNumberField('itxDecimalPlaces') && requireField('itxIssueAmount','amount',true,true) && checkAmountField('itxIssueAmount')){issueAsset(getFieldValue('itxAssetName',true),checkUndefined(getFieldValue('itxAssetDescription',true)),isFieldChecked('cbxCanReissue'),parseNumber(getFieldValue('itxDecimalPlaces')),parseAmount(getFieldValue('itxIssueAmount')),checkUndefined(getFieldValue('itxHoldDeviceId',true)),isFieldChecked('cbxProdUniqId2'))}else{return false}}">Issue Asset</button>
+                        <button id="btnIssueAsset" style="margin-top:8px" onclick="clearApiResult(); if(isFieldChecked('cbxReissue')){if(requireField('itxAssetId','asset ID',true,true) && requireField('itxIssueAmount','amount',true,true) && checkNumberField('itxIssueAmount', 'amount')){reissueAsset(getFieldValue('itxAssetId',true),parseAmount(getFieldValue('itxIssueAmount')),checkUndefined(getFieldValue('itxHoldDeviceId',true)),isFieldChecked('cbxProdUniqId2'))}else{return false}}else{if(requireField('itxAssetName','asset name',true,true) && requireField('itxDecimalPlaces','value for decimal places',false,true) && checkIntegerNumberField('itxDecimalPlaces') && requireField('itxIssueAmount','amount',true,true) && checkNumberField('itxIssueAmount', 'amount')){issueAsset(getFieldValue('itxAssetName',true),checkUndefined(getFieldValue('itxAssetDescription',true)),isFieldChecked('cbxCanReissue'),parseNumber(getFieldValue('itxDecimalPlaces')),parseAmount(getFieldValue('itxIssueAmount')),checkUndefined(getFieldValue('itxHoldDeviceId',true)),isFieldChecked('cbxProdUniqId2'))}else{return false}}">Issue Asset</button>
                     </td>
                 </tr>
 
@@ -1672,7 +2569,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnTransferAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId2','asset ID',true,true) && requireField('itxTransferAmount','amount',true,true) && checkAmountField('itxTransferAmount') && checkDeviceIdField('itxRecvDeviceId','receiving',false,true)){transferAsset(getFieldValue('itxAssetId2',true),parseAmount(getFieldValue('itxTransferAmount')),getFieldValue('itxRecvDeviceId',true),isFieldChecked('cbxProdUniqId3'))}else{return false}">Transfer Asset</button>
+                        <button id="btnTransferAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId2','asset ID',true,true) && requireField('itxTransferAmount','amount',true,true) && checkNumberField('itxTransferAmount', 'amount') && checkDeviceIdField('itxRecvDeviceId','receiving',false,true)){transferAsset(getFieldValue('itxAssetId2',true),parseAmount(getFieldValue('itxTransferAmount')),getFieldValue('itxRecvDeviceId',true),isFieldChecked('cbxProdUniqId3'))}else{return false}">Transfer Asset</button>
                     </td>
                 </tr>
 
@@ -1740,7 +2637,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnOwnedAssets" style="margin-top:8px" onclick="clearApiResult(); if((checkUndefined(getFieldValue('itxLimit',true)) === undefined || checkNumberField('itxLimit')) && (checkUndefined(getFieldValue('itxSkip',true)) === undefined || checkNumberField('itxSkip'))){listOwnedAssets(parseNumber(checkUndefined(getFieldValue('itxLimit',true))),parseNumber(checkUndefined(getFieldValue('itxSkip',true))))}else{return false}">List assets</button>
+                        <button id="btnOwnedAssets" style="margin-top:8px" onclick="clearApiResult(); if((checkUndefined(getFieldValue('itxLimit',true)) === undefined || checkIntegerNumberField('itxLimit')) && (checkUndefined(getFieldValue('itxSkip',true)) === undefined || checkIntegerNumberField('itxSkip'))){listOwnedAssets(parseNumber(checkUndefined(getFieldValue('itxLimit',true))),parseNumber(checkUndefined(getFieldValue('itxSkip',true))))}else{return false}">List assets</button>
                     </td>
                 </tr>
 
@@ -1768,7 +2665,7 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnIssuedAssets" style="margin-top:8px" onclick="clearApiResult(); if((checkUndefined(getFieldValue('itxLimit2',true)) === undefined || checkNumberField('itxLimit2')) && (checkUndefined(getFieldValue('itxSkip2',true)) === undefined || checkNumberField('itxSkip2'))){listIssuedAssets(parseNumber(checkUndefined(getFieldValue('itxLimit2',true))),parseNumber(checkUndefined(getFieldValue('itxSkip2',true))))}else{return false}">List assets</button>
+                        <button id="btnIssuedAssets" style="margin-top:8px" onclick="clearApiResult(); if((checkUndefined(getFieldValue('itxLimit2',true)) === undefined || checkIntegerNumberField('itxLimit2')) && (checkUndefined(getFieldValue('itxSkip2',true)) === undefined || checkIntegerNumberField('itxSkip2'))){listIssuedAssets(parseNumber(checkUndefined(getFieldValue('itxLimit2',true))),parseNumber(checkUndefined(getFieldValue('itxSkip2',true))))}else{return false}">List assets</button>
                     </td>
                 </tr>
 
@@ -1856,424 +2753,827 @@
                 <tr>
                     <td></td>
                     <td>
-                        <button id="btnAssetHolders" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId6','asset ID',true,true) && (checkUndefined(getFieldValue('itxLimit3',true)) === undefined || checkNumberField('itxLimit3')) && (checkUndefined(getFieldValue('itxSkip3',true)) === undefined || checkNumberField('itxSkip3'))){listAssetHolders(getFieldValue('itxAssetId6',true),parseNumber(checkUndefined(getFieldValue('itxLimit3',true))),parseNumber(checkUndefined(getFieldValue('itxSkip3',true))))}else{return false}">List holders</button>
+                        <button id="btnAssetHolders" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId6','asset ID',true,true) && (checkUndefined(getFieldValue('itxLimit3',true)) === undefined || checkIntegerNumberField('itxLimit3')) && (checkUndefined(getFieldValue('itxSkip3',true)) === undefined || checkIntegerNumberField('itxSkip3'))){listAssetHolders(getFieldValue('itxAssetId6',true),parseNumber(checkUndefined(getFieldValue('itxLimit3',true))),parseNumber(checkUndefined(getFieldValue('itxSkip3',true))))}else{return false}">List holders</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div id="divNFAsset" style="margin-top:1em; display:none">
+            <table>
+                <tr>
+                    <td colspan="2">
+                        Issue non-fungible asset:
+                    </td>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxNFAReissue">Reissue an existing asset: </label>
+                    </td>
+                    <td>
+                        <input id="cbxNFAReissue" type="checkbox" onclick="setNFAssetIssueFields(this.checked, document.getElementById('cbxNFAIssueContCall').checked)"/>
+                    </td>
+                </tr>
+                <tr id="trNFAssetId" style="display:none">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFAssetId">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFAssetId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFAssetId('itxNFAssetId')">Fill with last asset ID</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxNFAIssueContCall">Continuation call: </label>
+                    </td>
+                    <td>
+                        <input id="cbxNFAIssueContCall" type="checkbox" onclick="setNFAssetIssueFields(document.getElementById('cbxNFAReissue').checked, this.checked)"/>
+                    </td>
+                </tr>
+                <tr id="trNFAIssueContToken" style="display:none">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFAIssueContToken">continuation token: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFAIssueContToken" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFAIssuanceContToken('itxNFAIssueContToken')">Fill with last cont. token</a>
+                    </td>
+                </tr>
+                <tr id="trNFAssetName">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFAssetName">asset name: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFAssetName" type="text" maxlength="25" size="25"/>
+                    </td>
+                </tr>
+                <tr id="trNFAssetDescription">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFAssetDescription">asset description: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFAssetDescription" type="text" maxlength="80" size="80"/>
+                    </td>
+                </tr>
+                <tr id="trNFACanReissue">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxNFACanReissue">can reissue: </label>
+                    </td>
+                    <td>
+                        <input id="cbxNFACanReissue" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr id="trEncryptNFTContents">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxEncryptNFTContents">encrypt NFT contents: </label>
+                    </td>
+                    <td>
+                        <input id="cbxEncryptNFTContents" type="checkbox" checked/>
+                    </td>
+                </tr>
+                <tr id="trIssueNFAAsync">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxIssueNFAAsync">asynchronous processing: </label>
+                    </td>
+                    <td>
+                        <input id="cbxIssueNFAAsync" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr id="trNFTHoldingDevices">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label>Holding devices: </label>
+                    </td>
+                    <td>
+                        <table id="tblNFTHoldingDevices">
+                            <tr>
+                                <td colspan="2">Device #1&nbsp;&nbsp;<a href="#" onclick="addNFTHoldingDevice(getAncestorByTagName(this,'tr'));return false">add new</a></td>
+                            </tr>
+                            <tr>
+                                <td valign="top" align="right">
+                                    <label for="itxNFTHoldDeviceId_1">ID: </label>
+                                </td>
+                                <td>
+                                    <input id="itxNFTHoldDeviceId_1" class="itxNFTHoldDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                                    <br/><label for="cbxNFTProdUniqId_1">product unique ID: </label><input id="cbxNFTProdUniqId_1" class="cbxNFTProdUniqId" type="checkbox"/>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxIssueNFAFinal">is final: </label>
+                    </td>
+                    <td>
+                        <input id="cbxIssueNFAFinal" type="checkbox" checked/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label>Non-Fungible Tokens: </label>
+                    </td>
+                    <td>
+                        <table id="tblNFTokens">
+                            <tr>
+                                <td colspan="2">Token #1&nbsp;&nbsp;<a href="#" onclick="addNFToken(getAncestorByTagName(this,'tr'));setNFAssetIssueFields(document.getElementById('cbxNFAReissue').checked, document.getElementById('cbxNFAIssueContCall').checked);return false">add new</a></td>
+                            </tr>
+                            <tr class="trNFTName">
+                                <td valign="top" align="right">
+                                    <label for="itxNFTName_1">name: </label>
+                                </td>
+                                <td>
+                                    <input id="itxNFTName_1" class="itxNFTName" type="text" maxlength="25" size="25"/>
+                                </td>
+                            </tr>
+                            <tr class="trNFTDescription">
+                                <td valign="top" align="right">
+                                    <label for="itxNFTDescription_1">description: </label>
+                                </td>
+                                <td>
+                                    <input id="itxNFTDescription_1" class="itxNFTDescription" type="text" maxlength="80" size="80"/>
+                                </td>
+                            </tr>
+                            <tr class="trNFTCustomProps">
+                                <td valign="top" align="right">
+                                    <label>Custom props: </label>
+                                </td>
+                                <td>
+                                    <table class="tblCustomProps">
+                                        <tr>
+                                            <td colspan="2">Property #1&nbsp;&nbsp;<a href="#" onclick="addCustomProp(getAncestorByTagName(this,'tr'));return false">add new</a></td>
+                                        </tr>
+                                        <tr>
+                                            <td valign="top" align="right">
+                                                <label for="itxNFTCustomPropName_1_1">name: </label>
+                                            </td>
+                                            <td>
+                                                <input id="itxNFTCustomPropName_1_1" class="itxNFTCustomPropName" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td valign="top" align="right">
+                                                <label for="itxNFTCustomPropValue_1_1">value: </label>
+                                            </td>
+                                            <td>
+                                                <input id="itxNFTCustomPropValue_1_1" class="itxNFTCustomPropValue" style="margin-bottom:0.5em" type="text" maxlength="256" size="80"/>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td valign="top" align="right">
+                                                <label for="selNFTCustomPropType_1_1">type: </label>
+                                            </td>
+                                            <td>
+                                                <select id="selNFTCustomPropType_1_1" class="selNFTCustomPropType">
+                                                    <option value="string" selected>String</option>
+                                                    <option value="boolean">Boolean</option>
+                                                    <option value="number">Number</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td valign="top" align="right">
+                                                <label for="cbxNFTCustomPropSensitive_1_1">sensitive: </label>
+                                            </td>
+                                            <td>
+                                                <input id="cbxNFTCustomPropSensitive_1_1" class="cbxNFTCustomPropSensitive" style="margin-bottom:0.5em" type="checkbox"/>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td valign="top" align="right">
+                                    <label for="itxNFTContents_1">Contents: </label>
+                                </td>
+                                <td>
+                                    <textarea id="itxNFTContents_1" class="itxNFTContents" rows="5" cols="80"></textarea>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td valign="top" align="right">
+                                    <label for="selNFTContEncoding_1">encoding: </label>
+                                </td>
+                                <td>
+                                    <select id="selNFTContEncoding_1" class="selNFTContEncoding">
+                                        <option value="utf8" selected>UTF-8</option>
+                                        <option value="base64">Base-64</option>
+                                        <option value="hex">Hex</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnIssueNFAsset" style="margin-top:8px" onclick="return submitIssueNFAsset()">Issue Non-Fungible Asset</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Non-Fungible Asset Issuance Progress:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFAssetIssuanceId">asset issuance ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFAssetIssuanceId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFAIssuanceId('itxNFAssetIssuanceId')">Fill with last asset issuance ID</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnRetrieveNFAIssuanceProgress" style="margin-top:8px" onclick="return submitRetrieveNFAIssuanceProgress()">Retrieve Issuance Progress</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Retrieve Non-Fungible Token:
+                    </td>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxRetrieveNFTTokenId">non-fungible token ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxRetrieveNFTTokenId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:showLastNFTokenIds()">Show last non-fungible token IDs</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxNFTRetrieveContCall">Continuation call: </label>
+                    </td>
+                    <td>
+                        <input id="cbxNFTRetrieveContCall" type="checkbox" onclick="setNFTRetrieveFields(this.checked, document.getElementById('cbxRetrieveNFTContents').checked)"/>
+                    </td>
+                </tr>
+                <tr id="trNFTRetrieveContToken" style="display:none">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFTRetrieveContToken">continuation token: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFTRetrieveContToken" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFTRetrievalContToken('itxNFTRetrieveContToken')">Fill with last cont. token</a>
+                    </td>
+                </tr>
+                <tr id="trRetrieveNFTContents">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxRetrieveNFTContents">Retrieve contents: </label>
+                    </td>
+                    <td>
+                        <input id="cbxRetrieveNFTContents" type="checkbox" onclick="setNFTRetrieveFields(document.getElementById('cbxNFTRetrieveContCall').checked, this.checked)" checked/>
+                    </td>
+                </tr>
+                <tr id="trRetrieveNFTContsOnly">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxRetrieveNFTContsOnly">contents only: </label>
+                    </td>
+                    <td>
+                        <input id="cbxRetrieveNFTContsOnly" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr id="trRetrieveNFTEncoding">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="selRetrieveNFTEncoding">encoding: </label>
+                    </td>
+                    <td>
+                        <select id="selRetrieveNFTEncoding" class="selNFTContEncoding">
+                            <option value="utf8" selected>UTF-8</option>
+                            <option value="base64">Base-64</option>
+                            <option value="hex">Hex</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="RetrieveNFTChunkSize">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxRetrieveNFTChunkSize">data chunk size: </label>
+                    </td>
+                    <td>
+                        <input id="itxRetrieveNFTChunkSize" type="text" maxlength="20" size="20"/>
+                    </td>
+                </tr>
+                <tr id="trRetrieveNFTAsync">
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxRetrieveNFTAsync">asynchronous processing: </label>
+                    </td>
+                    <td>
+                        <input id="cbxRetrieveNFTAsync" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnRetrieveNFToken" style="margin-top:8px" onclick="return submitRetrieveNFToken()">Retrieve Non-Fungible Token</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Non-Fungible Token Retrieval Progress:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxRetrieveNFTProgressTokenId">non-fungible token ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxRetrieveNFTProgressTokenId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:showLastNFTokenIds()">Show last non-fungible token IDs</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFTRetrievalId">token retrieval ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFTRetrievalId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFTRetrievalId('itxNFTRetrievalId')">Fill with last token retrieval ID</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnRetrieveNFTRetrievalProgress" style="margin-top:8px" onclick="return submitRetrieveNFTRetrievalProgress()">Retrieve Retrieval Progress</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Transfer Non-Fungible Token:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxTransferNFTTokenId">non-fungible token ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxTransferNFTTokenId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:showLastNFTokenIds()">Show last non-fungible token IDs</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" >
+                        <label for="itxTransferNFTRecvDeviceId">Receiving device ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxTransferNFTRecvDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                        <br/><label for="cbxTransferNFTProdUniqId">product unique ID: </label><input id="cbxTransferNFTProdUniqId" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="cbxTransferNFTAsync">asynchronous processing: </label>
+                    </td>
+                    <td>
+                        <input id="cbxTransferNFTAsync" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnTransferNFToken" style="margin-top:8px" onclick="return submitTransferNFToken()">Transfer Non-Fungible Token</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Non-Fungible Token Transfer Progress:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxTransferNFTProgressTokenId">non-fungible token ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxTransferNFTProgressTokenId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:showLastNFTokenIds()">Show last non-fungible token IDs</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxNFTTransferId">token transfer ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxNFTTransferId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFTTransferId('itxNFTTransferId')">Fill with last token transfer ID</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnTransferNFTRetrievalProgress" style="margin-top:8px" onclick="return submitRetrieveNFTTransferProgress()">Retrieve Transfer Progress</button>
                     </td>
                 </tr>
             </table>
         </div>
         <div id="divAssetExport" style="margin-top:1em; display:none">
-            <table>
-                <tr>
-                    <td colspan="2">
-                        Export asset:
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetId7">asset ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetId7" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selForeignBc">foreign blockchain: </label>
-                    </td>
-                    <td>
-                        <select id="selForeignBc">
-                            <option value="ethereum" selected>Ethereum</option>
-                            <option value="binance">Binance Smart Chain</option>
-                            <option value="polygon">Polygon PoS Chain</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxTokenName">token name: </label>
-                    </td>
-                    <td>
-                        <input id="itxTokenName" type="text" maxlength="80" size="80"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxTokenSymbol">token symbol: </label>
-                    </td>
-                    <td>
-                        <input id="itxTokenSymbol" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selConsumptionPrf">Consumption profile: </label>
-                    </td>
-                    <td>
-                        <select id="selConsumptionPrf">
-                            <option value="" selected></option>
-                            <option value="fastest">Fastest</option>
-                            <option value="fast">Fast</option>
-                            <option value="average">Average</option>
-                            <option value="slow">Slow</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="cbxEstimateOnly">estimate only: </label>
-                    </td>
-                    <td>
-                        <input id="cbxEstimateOnly" type="checkbox"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <button id="btnExportAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId7','asset ID',true,true) && requireField('itxTokenName','token name',false,true) && requireField('itxTokenSymbol','token symbol',false,true)){exportAsset(getFieldValue('itxAssetId7',true),getFieldValue('selForeignBc'),getFieldValue('itxTokenName'),getFieldValue('itxTokenSymbol'),checkUndefined(getFieldValue('selConsumptionPrf')),isFieldChecked('cbxEstimateOnly'))}else{return false}">Export Asset</button>
-                    </td>
-                </tr>
+    <table>
+        <tr>
+            <td colspan="2">
+                Export asset:
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetId7">asset ID: </label>
+            </td>
+            <td>
+                <input id="itxAssetId7" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selForeignBc">foreign blockchain: </label>
+            </td>
+            <td>
+                <select id="selForeignBc">
+                    <option value="ethereum" selected>Ethereum</option>
+                    <option value="binance">Binance Smart Chain</option>
+                    <option value="polygon">Polygon PoS Chain</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxTokenName">token name: </label>
+            </td>
+            <td>
+                <input id="itxTokenName" type="text" maxlength="80" size="80"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxTokenSymbol">token symbol: </label>
+            </td>
+            <td>
+                <input id="itxTokenSymbol" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selConsumptionPrf">Consumption profile: </label>
+            </td>
+            <td>
+                <select id="selConsumptionPrf">
+                    <option value="" selected></option>
+                    <option value="fastest">Fastest</option>
+                    <option value="fast">Fast</option>
+                    <option value="average">Average</option>
+                    <option value="slow">Slow</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="cbxEstimateOnly">estimate only: </label>
+            </td>
+            <td>
+                <input id="cbxEstimateOnly" type="checkbox"/>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="btnExportAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId7','asset ID',true,true) && requireField('itxTokenName','token name',false,true) && requireField('itxTokenSymbol','token symbol',false,true)){exportAsset(getFieldValue('itxAssetId7',true),getFieldValue('selForeignBc'),getFieldValue('itxTokenName'),getFieldValue('itxTokenSymbol'),checkUndefined(getFieldValue('selConsumptionPrf')),isFieldChecked('cbxEstimateOnly'))}else{return false}">Export Asset</button>
+            </td>
+        </tr>
 
-                <tr>
-                    <td colspan="2" style="padding-top:1.25em">
-                        Migrate asset:
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetId8">asset ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetId8" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selForeignBc2">foreign blockchain: </label>
-                    </td>
-                    <td>
-                        <select id="selForeignBc2">
-                            <option value="ethereum" selected>Ethereum</option>
-                            <option value="binance">Binance Smart Chain</option>
-                            <option value="polygon">Polygon PoS Chain</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="cbxReprMigration">Reprocess a (failed) migration: </label>
-                    </td>
-                    <td>
-                        <input id="cbxReprMigration" type="checkbox" onclick="setAssetMigrationFields(this.checked)"/>
-                    </td>
-                </tr>
-                <tr id="trMigrationId" style="display:none">
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxMigrationId">migration ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxMigrationId" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr id="trMgrDirection">
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selMgrDirection">direction: </label>
-                    </td>
-                    <td>
-                        <select id="selMgrDirection">
-                            <option value="outward" selected>Outward</option>
-                            <option value="inward">Inward</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr id="trMgrAmount">
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxMgrAmount">amount: </label>
-                    </td>
-                    <td>
-                        <input id="itxMgrAmount" type="text" maxlength="17" size="17"/>
-                    </td>
-                </tr>
-                <tr id="trMgrDestAddress">
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxMgrDestAddress">destination address: </label>
-                    </td>
-                    <td>
-                        <input id="itxMgrDestAddress" type="text" maxlength="42" size="42"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selConsumptionPrf2">Consumption profile: </label>
-                    </td>
-                    <td>
-                        <select id="selConsumptionPrf2">
-                            <option value="" selected></option>
-                            <option value="fastest">Fastest</option>
-                            <option value="fast">Fast</option>
-                            <option value="average">Average</option>
-                            <option value="slow">Slow</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="cbxEstimateOnly2">estimate only: </label>
-                    </td>
-                    <td>
-                        <input id="cbxEstimateOnly2" type="checkbox"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <button id="btnMigrateAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId8','asset ID',true,true) && ((isFieldChecked('cbxReprMigration') && (requireField('itxMigrationId','migration ID',false,true))) || (!isFieldChecked('cbxReprMigration') && (requireField('itxMgrAmount','amount',true,true) && checkAmountField('itxMgrAmount')) && (!checkFieldValue('selMgrDirection','outward') || requireField('itxMgrDestAddress','destination address',false,true))))){migrateAsset(getFieldValue('itxAssetId8',true),getFieldValue('selForeignBc2'),optValue(isFieldChecked('cbxReprMigration'),getFieldValue('itxMigrationId')),getFieldValue('selMgrDirection'),parseAmount(getFieldValue('itxMgrAmount')),optValue(checkFieldValue('selMgrDirection','outward'),checkUndefined(getFieldValue('itxMgrDestAddress'))),checkUndefined(getFieldValue('selConsumptionPrf2')),isFieldChecked('cbxEstimateOnly2'))}else{return false}">Migrate Asset</button>
-                    </td>
-                </tr>
+        <tr>
+            <td colspan="2" style="padding-top:1.25em">
+                Migrate asset:
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetId8">asset ID: </label>
+            </td>
+            <td>
+                <input id="itxAssetId8" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selForeignBc2">foreign blockchain: </label>
+            </td>
+            <td>
+                <select id="selForeignBc2">
+                    <option value="ethereum" selected>Ethereum</option>
+                    <option value="binance">Binance Smart Chain</option>
+                    <option value="polygon">Polygon PoS Chain</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="cbxReprMigration">Reprocess a (failed) migration: </label>
+            </td>
+            <td>
+                <input id="cbxReprMigration" type="checkbox" onclick="setAssetMigrationFields(this.checked)"/>
+            </td>
+        </tr>
+        <tr id="trMigrationId" style="display:none">
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxMigrationId">migration ID: </label>
+            </td>
+            <td>
+                <input id="itxMigrationId" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr id="trMgrDirection">
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selMgrDirection">direction: </label>
+            </td>
+            <td>
+                <select id="selMgrDirection">
+                    <option value="outward" selected>Outward</option>
+                    <option value="inward">Inward</option>
+                </select>
+            </td>
+        </tr>
+        <tr id="trMgrAmount">
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxMgrAmount">amount: </label>
+            </td>
+            <td>
+                <input id="itxMgrAmount" type="text" maxlength="17" size="17"/>
+            </td>
+        </tr>
+        <tr id="trMgrDestAddress">
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxMgrDestAddress">destination address: </label>
+            </td>
+            <td>
+                <input id="itxMgrDestAddress" type="text" maxlength="42" size="42"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selConsumptionPrf2">Consumption profile: </label>
+            </td>
+            <td>
+                <select id="selConsumptionPrf2">
+                    <option value="" selected></option>
+                    <option value="fastest">Fastest</option>
+                    <option value="fast">Fast</option>
+                    <option value="average">Average</option>
+                    <option value="slow">Slow</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="cbxEstimateOnly2">estimate only: </label>
+            </td>
+            <td>
+                <input id="cbxEstimateOnly2" type="checkbox"/>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="btnMigrateAsset" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId8','asset ID',true,true) && ((isFieldChecked('cbxReprMigration') && (requireField('itxMigrationId','migration ID',false,true))) || (!isFieldChecked('cbxReprMigration') && (requireField('itxMgrAmount','amount',true,true) && checkNumberField('itxMgrAmount', 'amount')) && (!checkFieldValue('selMgrDirection','outward') || requireField('itxMgrDestAddress','destination address',false,true))))){migrateAsset(getFieldValue('itxAssetId8',true),getFieldValue('selForeignBc2'),optValue(isFieldChecked('cbxReprMigration'),getFieldValue('itxMigrationId')),getFieldValue('selMgrDirection'),parseAmount(getFieldValue('itxMgrAmount')),optValue(checkFieldValue('selMgrDirection','outward'),checkUndefined(getFieldValue('itxMgrDestAddress'))),checkUndefined(getFieldValue('selConsumptionPrf2')),isFieldChecked('cbxEstimateOnly2'))}else{return false}">Migrate Asset</button>
+            </td>
+        </tr>
 
-                <tr>
-                    <td colspan="2" style="padding-top:1.25em">
-                        Asset export outcome:
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetId9">asset ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetId9" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selForeignBc3">foreign blockchain: </label>
-                    </td>
-                    <td>
-                        <select id="selForeignBc3">
-                            <option value="ethereum" selected>Ethereum</option>
-                            <option value="binance">Binance Smart Chain</option>
-                            <option value="polygon">Polygon PoS Chain</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <button id="btnAssetExportOutcome" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId9','asset ID',true,true)){assetExportOutcome(getFieldValue('itxAssetId9',true),getFieldValue('selForeignBc3'))}else{return false}">Get Outcome</button>
-                    </td>
-                </tr>
+        <tr>
+            <td colspan="2" style="padding-top:1.25em">
+                Asset export outcome:
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetId9">asset ID: </label>
+            </td>
+            <td>
+                <input id="itxAssetId9" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selForeignBc3">foreign blockchain: </label>
+            </td>
+            <td>
+                <select id="selForeignBc3">
+                    <option value="ethereum" selected>Ethereum</option>
+                    <option value="binance">Binance Smart Chain</option>
+                    <option value="polygon">Polygon PoS Chain</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="btnAssetExportOutcome" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxAssetId9','asset ID',true,true)){assetExportOutcome(getFieldValue('itxAssetId9',true),getFieldValue('selForeignBc3'))}else{return false}">Get Outcome</button>
+            </td>
+        </tr>
 
-                <tr>
-                    <td colspan="2" style="padding-top:1.25em">
-                        Asset migration outcome:
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxMigrationId2">migration ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxMigrationId2" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <button id="btnAssetMigrationOutcome" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMigrationId2','migration ID',false,true)){assetMigrationOutcome(getFieldValue('itxMigrationId2',true))}else{return false}">Get Outcome</button>
-                    </td>
-                </tr>
+        <tr>
+            <td colspan="2" style="padding-top:1.25em">
+                Asset migration outcome:
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxMigrationId2">migration ID: </label>
+            </td>
+            <td>
+                <input id="itxMigrationId2" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="btnAssetMigrationOutcome" style="margin-top:8px" onclick="clearApiResult(); if(requireField('itxMigrationId2','migration ID',false,true)){assetMigrationOutcome(getFieldValue('itxMigrationId2',true))}else{return false}">Get Outcome</button>
+            </td>
+        </tr>
 
-                <tr>
-                    <td colspan="2" style="padding-top:1.25em">
-                        List exported assets:
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetId10">asset ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetId10" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selForeignBc4">foreign blockchain: </label>
-                    </td>
-                    <td>
-                        <select id="selForeignBc4">
-                            <option value="" selected></option>
-                            <option value="ethereum">Ethereum</option>
-                            <option value="binance">Binance Smart Chain</option>
-                            <option value="polygon">Polygon PoS Chain</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxTokenSymbol2">token symbol: </label>
-                    </td>
-                    <td>
-                        <input id="itxTokenSymbol2" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selAssetExpStatus">status: </label>
-                    </td>
-                    <td>
-                        <select id="selAssetExpStatus" multiple size="3">
-                            <option value="pending">Pending</option>
-                            <option value="success">Success</option>
-                            <option value="error">Error</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="cbxNotAssetExpStatus">negate status: </label>
-                    </td>
-                    <td>
-                        <input id="cbxNotAssetExpStatus" type="checkbox"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="idtStartDate3">start date: </label>
-                    </td>
-                    <td>
-                        <input id="idtStartDate3" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="idtEndDate3">end date: </label>
-                    </td>
-                    <td>
-                        <input id="idtEndDate3" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetExpLimit">max. returned asset exports: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetExpLimit" type="text" maxlength="3" size="3"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetExpSkip">asset exports to skip: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetExpSkip" type="text" maxlength="10" size="10"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <button id="btnListExpAsset" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields(3) && (checkUndefined(getFieldValue('itxAssetExpLimit',true)) === undefined || checkNumberField('itxAssetExpLimit')) && (checkUndefined(getFieldValue('itxAssetExpSkip',true)) === undefined || checkNumberField('itxAssetExpSkip'))){listExportedAssets(checkUndefined(getFieldValue('itxAssetId10',true)),checkUndefined(getFieldValue('selForeignBc4',true)),checkUndefined(getFieldValue('itxTokenSymbol2',true)),checkUndefined(getSelectList('selAssetExpStatus')),isFieldChecked('cbxNotAssetExpStatus'),formatDate(getFieldValue('idtStartDate3')),formatDate(getFieldValue('idtEndDate3')),parseNumber(checkUndefined(getFieldValue('itxAssetExpLimit'))),parseNumber(checkUndefined(getFieldValue('itxAssetExpSkip'))))}else{return false}">List Asset Exports</button>
-                    </td>
-                </tr>
+        <tr>
+            <td colspan="2" style="padding-top:1.25em">
+                List exported assets:
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetId10">asset ID: </label>
+            </td>
+            <td>
+                <input id="itxAssetId10" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selForeignBc4">foreign blockchain: </label>
+            </td>
+            <td>
+                <select id="selForeignBc4">
+                    <option value="" selected></option>
+                    <option value="ethereum">Ethereum</option>
+                    <option value="binance">Binance Smart Chain</option>
+                    <option value="polygon">Polygon PoS Chain</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxTokenSymbol2">token symbol: </label>
+            </td>
+            <td>
+                <input id="itxTokenSymbol2" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selAssetExpStatus">status: </label>
+            </td>
+            <td>
+                <select id="selAssetExpStatus" multiple size="3">
+                    <option value="pending">Pending</option>
+                    <option value="success">Success</option>
+                    <option value="error">Error</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="cbxNotAssetExpStatus">negate status: </label>
+            </td>
+            <td>
+                <input id="cbxNotAssetExpStatus" type="checkbox"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="idtStartDate3">start date: </label>
+            </td>
+            <td>
+                <input id="idtStartDate3" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="idtEndDate3">end date: </label>
+            </td>
+            <td>
+                <input id="idtEndDate3" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetExpLimit">max. returned asset exports: </label>
+            </td>
+            <td>
+                <input id="itxAssetExpLimit" type="text" maxlength="3" size="3"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetExpSkip">asset exports to skip: </label>
+            </td>
+            <td>
+                <input id="itxAssetExpSkip" type="text" maxlength="10" size="10"/>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="btnListExpAsset" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields(3) && (checkUndefined(getFieldValue('itxAssetExpLimit',true)) === undefined || checkIntegerNumberField('itxAssetExpLimit')) && (checkUndefined(getFieldValue('itxAssetExpSkip',true)) === undefined || checkIntegerNumberField('itxAssetExpSkip'))){listExportedAssets(checkUndefined(getFieldValue('itxAssetId10',true)),checkUndefined(getFieldValue('selForeignBc4',true)),checkUndefined(getFieldValue('itxTokenSymbol2',true)),checkUndefined(getSelectList('selAssetExpStatus')),isFieldChecked('cbxNotAssetExpStatus'),formatDate(getFieldValue('idtStartDate3')),formatDate(getFieldValue('idtEndDate3')),parseNumber(checkUndefined(getFieldValue('itxAssetExpLimit'))),parseNumber(checkUndefined(getFieldValue('itxAssetExpSkip'))))}else{return false}">List Asset Exports</button>
+            </td>
+        </tr>
 
-                <tr>
-                    <td colspan="2" style="padding-top:1.25em">
-                        List asset migrations:
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetId11">asset ID: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetId11" type="text" maxlength="20" size="20"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selForeignBc5">foreign blockchain: </label>
-                    </td>
-                    <td>
-                        <select id="selForeignBc5">
-                            <option value="" selected></option>
-                            <option value="ethereum">Ethereum</option>
-                            <option value="binance">Binance Smart Chain</option>
-                            <option value="polygon">Polygon PoS Chain</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selMgrDirection2">direction: </label>
-                    </td>
-                    <td>
-                        <select id="selMgrDirection2">
-                            <option value="" selected></option>
-                            <option value="outward">Outward</option>
-                            <option value="inward">Inward</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="selAssetExpStatus2">status: </label>
-                    </td>
-                    <td>
-                        <select id="selAssetExpStatus2" multiple size="4">
-                            <option value="pending">Pending</option>
-                            <option value="interrupted">Interrupted</option>
-                            <option value="success">Success</option>
-                            <option value="error">Error</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="cbxNotAssetExpStatus2">negate status: </label>
-                    </td>
-                    <td>
-                        <input id="cbxNotAssetExpStatus2" type="checkbox"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="idtStartDate4">start date: </label>
-                    </td>
-                    <td>
-                        <input id="idtStartDate4" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="idtEndDate4">end date: </label>
-                    </td>
-                    <td>
-                        <input id="idtEndDate4" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetMgrLimit">max. returned asset migrations: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetMgrLimit" type="text" maxlength="3" size="3"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td valign="top" align="right" style="padding-left:1em">
-                        <label for="itxAssetMgrSkip">asset migrations to skip: </label>
-                    </td>
-                    <td>
-                        <input id="itxAssetMgrSkip" type="text" maxlength="10" size="10"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <button id="btnListAssetMgr" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields(4) && (checkUndefined(getFieldValue('itxAssetMgrLimit',true)) === undefined || checkNumberField('itxAssetMgrLimit')) && (checkUndefined(getFieldValue('itxAssetMgrSkip',true)) === undefined || checkNumberField('itxAssetMgrSkip'))){listAssetMigrations(checkUndefined(getFieldValue('itxAssetId11',true)),checkUndefined(getFieldValue('selForeignBc5',true)),checkUndefined(getFieldValue('selMgrDirection2',true)),checkUndefined(getSelectList('selAssetExpStatus2')),isFieldChecked('cbxNotAssetExpStatus2'),formatDate(getFieldValue('idtStartDate4')),formatDate(getFieldValue('idtEndDate4')),parseNumber(checkUndefined(getFieldValue('itxAssetMgrLimit'))),parseNumber(checkUndefined(getFieldValue('itxAssetMgrSkip'))))}else{return false}">List Asset Migrations</button>
-                    </td>
-                </tr>
-            </table>
-        </div>
+        <tr>
+            <td colspan="2" style="padding-top:1.25em">
+                List asset migrations:
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetId11">asset ID: </label>
+            </td>
+            <td>
+                <input id="itxAssetId11" type="text" maxlength="20" size="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selForeignBc5">foreign blockchain: </label>
+            </td>
+            <td>
+                <select id="selForeignBc5">
+                    <option value="" selected></option>
+                    <option value="ethereum">Ethereum</option>
+                    <option value="binance">Binance Smart Chain</option>
+                    <option value="polygon">Polygon PoS Chain</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selMgrDirection2">direction: </label>
+            </td>
+            <td>
+                <select id="selMgrDirection2">
+                    <option value="" selected></option>
+                    <option value="outward">Outward</option>
+                    <option value="inward">Inward</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="selAssetExpStatus2">status: </label>
+            </td>
+            <td>
+                <select id="selAssetExpStatus2" multiple size="4">
+                    <option value="pending">Pending</option>
+                    <option value="interrupted">Interrupted</option>
+                    <option value="success">Success</option>
+                    <option value="error">Error</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="cbxNotAssetExpStatus2">negate status: </label>
+            </td>
+            <td>
+                <input id="cbxNotAssetExpStatus2" type="checkbox"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="idtStartDate4">start date: </label>
+            </td>
+            <td>
+                <input id="idtStartDate4" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="idtEndDate4">end date: </label>
+            </td>
+            <td>
+                <input id="idtEndDate4" placeholder="YYYY-MM-dd HH:mm:ss" type="text" maxlength="25"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetMgrLimit">max. returned asset migrations: </label>
+            </td>
+            <td>
+                <input id="itxAssetMgrLimit" type="text" maxlength="3" size="3"/>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" align="right" style="padding-left:1em">
+                <label for="itxAssetMgrSkip">asset migrations to skip: </label>
+            </td>
+            <td>
+                <input id="itxAssetMgrSkip" type="text" maxlength="10" size="10"/>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="btnListAssetMgr" style="margin-top:10px" onclick="clearApiResult(); if(checkDateRangeFields(4) && (checkUndefined(getFieldValue('itxAssetMgrLimit',true)) === undefined || checkIntegerNumberField('itxAssetMgrLimit')) && (checkUndefined(getFieldValue('itxAssetMgrSkip',true)) === undefined || checkIntegerNumberField('itxAssetMgrSkip'))){listAssetMigrations(checkUndefined(getFieldValue('itxAssetId11',true)),checkUndefined(getFieldValue('selForeignBc5',true)),checkUndefined(getFieldValue('selMgrDirection2',true)),checkUndefined(getSelectList('selAssetExpStatus2')),isFieldChecked('cbxNotAssetExpStatus2'),formatDate(getFieldValue('idtStartDate4')),formatDate(getFieldValue('idtEndDate4')),parseNumber(checkUndefined(getFieldValue('itxAssetMgrLimit'))),parseNumber(checkUndefined(getFieldValue('itxAssetMgrSkip'))))}else{return false}">List Asset Migrations</button>
+            </td>
+        </tr>
+    </table>
+</div>
         <table width="100%" style="margin-top:1em">
             <tr>
                 <td valign="top" width="50%">
