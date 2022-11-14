@@ -906,7 +906,7 @@
                 return entries;
             }
 
-            function stricParseNumber(val) {
+            function strictParseNumber(val) {
                 return typeof val === 'string' && /^[+-]?(?:\d+|\d*\.\d*)$/.test(val) ? parseFloat(val) : NaN;
             }
 
@@ -937,7 +937,7 @@
             }
 
             function parseAmount(val) {
-                return val ? stricParseNumber(val) : val;
+                return val ? strictParseNumber(val) : val;
             }
 
             function isFieldChecked(ctrlId) {
@@ -1032,7 +1032,7 @@
                 var fieldCtrl = ctrlId instanceof HTMLElement ? ctrlId : document.getElementById(ctrlId);
 
                 if (fieldCtrl) {
-                    var val = stricParseNumber(fieldCtrl.value);
+                    var val = strictParseNumber(fieldCtrl.value);
 
                     if (isNaN(val)) {
                         alert('Invalid ' + (valueDescription ? valueDescription : 'number'));
