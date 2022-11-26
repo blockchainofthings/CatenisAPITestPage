@@ -2,7 +2,7 @@
 
 This is an HTML page that can be used to exercise and test every aspect of the Catenis REST API.
 
-This current release uses version 7.0.0 of the Catenis API JavaScript client library and is compliant with version 0.12
+This current release uses version 7.1.0 of the Catenis API JavaScript client library and is compliant with version 0.13
  of the Catenis API.
 
 ## Usage

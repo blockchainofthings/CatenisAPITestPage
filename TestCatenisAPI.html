@@ -305,6 +305,34 @@
                 ctnApiClient.listAssetHolders(assetId, limit, skip, processResult);
             }
 
+            function listOwnedNonFungibleTokens(assetId, limit, skip) {
+                ctnApiClient.listOwnedNonFungibleTokens(assetId, limit, skip, processResult);
+            }
+
+            function getNonFungibleTokenOwner(tokenId) {
+                ctnApiClient.getNonFungibleTokenOwner(tokenId, processResult);
+            }
+
+            function checkNonFungibleTokenOwnership(checkDeviceId, isProdUniqueId, nfTokenId, isAssetId) {
+                var checkDevice = {
+                    id: checkDeviceId
+                };
+
+                if (isProdUniqueId) {
+                    checkDevice.isProdUniqueId = isProdUniqueId;
+                }
+
+                var nonFungibleTokens = {
+                    id: nfTokenId
+                };
+
+                if (isAssetId) {
+                    nonFungibleTokens.isAssetId = isAssetId;
+                }
+
+                ctnApiClient.checkNonFungibleTokenOwnership(checkDevice, nonFungibleTokens, processResult);
+            }
+
             function exportAsset(assetId, foreignBlockchain, tokenName, tokenSymbol, consumptionProfile, estimateOnly) {
                 ctnApiClient.exportAsset(assetId, foreignBlockchain, {
                     name: tokenName,
@@ -692,6 +720,62 @@
                 }
 
                 retrieveNonFungibleTokenTransferProgress(tokenId, tokenTransferId);
+            }
+
+            function submitListOwnedNonFungibleTokens() {
+                clearApiResult();
+
+                var assetId, limit, skip;
+
+                if ((assetId = requireField('itxListOwnedNFTsAssetId', 'asset ID', true, true, true)) === false) {
+                    return false;
+                }
+
+                if (checkUndefined(getFieldValue('itxListOwnedNFTsLimit', true)) !== undefined) {
+                    if ((limit = checkIntegerNumberField('itxListOwnedNFTsLimit', 'limit', true)) === false) {
+                        return false;
+                    }
+                }
+
+                if (checkUndefined(getFieldValue('itxListOwnedNFTsSkip', true)) !== undefined) {
+                    if ((skip = checkIntegerNumberField('itxListOwnedNFTsSkip', 'skip', true)) === false) {
+                        return false;
+                    }
+                }
+
+                listOwnedNonFungibleTokens(assetId, limit, skip);
+            }
+
+            function submitGetNonFungibleTokenOwner() {
+                clearApiResult();
+
+                var tokenId;
+
+                if ((tokenId = requireField('itxGetNFTOwnerTokenId', 'non-fungible token ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                getNonFungibleTokenOwner(tokenId);
+            }
+
+            function submitCheckNonFungibleTokenOwnership() {
+                clearApiResult();
+
+                var checkDeviceId, isProdUniqueId, nfTokenId, isAssetId;
+
+                if((checkDeviceId = requireField('itxCheckDeviceId', 'check device ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                isProdUniqueId = isFieldChecked('cbxChkNFTOwnerProdUniqId');
+
+                if((nfTokenId = requireField('itxChkNFTOwnerTokenId', 'non-fungible token or asset ID', false, true, true)) === false) {
+                    return false;
+                }
+
+                isAssetId = isFieldChecked('cbxChkNFTOwnerIsAssetId');
+
+                checkNonFungibleTokenOwnership(checkDeviceId, isProdUniqueId, nfTokenId, isAssetId);
             }
 
             function getIssueNFAssetHoldingDevices() {
@@ -3157,6 +3241,92 @@
                     <td></td>
                     <td>
                         <button id="btnTransferNFTRetrievalProgress" style="margin-top:8px" onclick="return submitRetrieveNFTTransferProgress()">Retrieve Transfer Progress</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        List Owned Non-Fungible Tokens:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxListOwnedNFTsAssetId">asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxListOwnedNFTsAssetId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:fillWithLastNFAssetId('itxListOwnedNFTsAssetId')">Fill with last asset ID</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxListOwnedNFTsLimit">maximum returned entries: </label>
+                    </td>
+                    <td>
+                        <input id="itxListOwnedNFTsLimit" type="text" maxlength="3" size="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxListOwnedNFTsSkip">entries to skip: </label>
+                    </td>
+                    <td>
+                        <input id="itxListOwnedNFTsSkip" type="text" maxlength="10" size="10"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnListOwnedNFTs" style="margin-top:8px" onclick="return submitListOwnedNonFungibleTokens()">List Owned NFTs</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Get Non-Fungible Token Owner:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" style="padding-left:1em">
+                        <label for="itxGetNFTOwnerTokenId">non-fungible token ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxGetNFTOwnerTokenId" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:showLastNFTokenIds()">Show last non-fungible token IDs</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnGetNFTOwner" style="margin-top:8px" onclick="return submitGetNonFungibleTokenOwner()">Get NFT Owner</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="padding-top:1.25em">
+                        Check Non-Fungible Token Ownership:
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" >
+                        <label for="itxCheckDeviceId">Check device ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxCheckDeviceId" style="margin-bottom:0.5em" type="text" maxlength="40" size="40"/>
+                        <br/><label for="cbxChkNFTOwnerProdUniqId">product unique ID: </label><input id="cbxChkNFTOwnerProdUniqId" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" align="right" >
+                        <label for="itxChkNFTOwnerTokenId">Non-fungible token or asset ID: </label>
+                    </td>
+                    <td>
+                        <input id="itxChkNFTOwnerTokenId" style="margin-bottom:0.5em" type="text" maxlength="20" size="20"/>&nbsp;<a href="javascript:showLastNFTokenIds()">Show last non-fungible token IDs</a>&nbsp;&nbsp;<a href="javascript:fillWithLastNFAssetId('itxChkNFTOwnerTokenId')">Fill with last asset ID</a>
+                        <br/><label for="cbxChkNFTOwnerIsAssetId">asset ID: </label><input id="cbxChkNFTOwnerIsAssetId" type="checkbox"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <button id="btnCheckNFTOwner" style="margin-top:8px" onclick="return submitCheckNonFungibleTokenOwnership()">Check Ownership</button>
                     </td>
                 </tr>
             </table>
