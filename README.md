@@ -15,6 +15,6 @@ To call the Catenis API methods, click on the appropriate category (*Messages*, 
  
 ## License
 
-This project is for Blockchain of Things' internal use only.
+This software is released under the [MIT License](LICENSE). Feel free to fork, and modify!
 
-Copyright © 2017-2022, Blockchain of Things Inc.
+Copyright © 2017-2023, Blockchain of Things Inc.
